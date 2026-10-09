@@ -1,0 +1,2728 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>FixTogether - ระบบแจ้งและจัดการซ่อมถนนอัจฉริยะ</title>
+  <!-- Google Fonts: Prompt -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Leaflet CSS & JS for Interactive Map -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <!-- Chart.js for Analytics -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- D3.js and TopoJSON for 3D Globe Wireframe -->
+  <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+  <script src="https://cdn.jsdelivr.net/npm/topojson-client@3"></script>
+  
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Prompt', 'sans-serif'],
+          },
+          colors: {
+            gov: {
+              50: '#f8fafc',
+              100: '#f1f5f9',
+              200: '#e2e8f0',
+              300: '#cbd5e1',
+              600: '#2563eb',
+              700: '#1d4ed8',
+              800: '#1e3a8a',
+              900: '#0f172a',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { 
+      font-family: 'Prompt', sans-serif; 
+      -webkit-tap-highlight-color: transparent;
+    }
+    /* Prevent iOS Safari auto-zoom on input focus */
+    @media screen and (max-width: 640px) {
+      input, select, textarea {
+        font-size: 14px !important;
+      }
+      .mobile-card {
+        padding: 0.875rem !important;
+      }
+    }
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.2rem 0.6rem;
+      border-radius: 9999px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .status-pending { background-color: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
+    .status-assigned { background-color: #e0e7ff; color: #3730a3; border: 1px solid #c7d2fe; }
+    .status-repairing { background-color: #ffedd5; color: #9a3412; border: 1px solid #fed7aa; }
+    .status-inspecting { background-color: #f3e8ff; color: #6b21a8; border: 1px solid #e9d5ff; }
+    .status-revision { background-color: #fef08a; color: #854d0e; border: 1px solid #fde047; }
+    .status-closed { background-color: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+    .status-rejected { background-color: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
+    .status-cancelled { background-color: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; }
+    /* Touch scrollbar */
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 9999px; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col relative antialiased selection:bg-blue-600 selection:text-white pb-14 sm:pb-0">
+
+  <!-- ======================================================== -->
+  <!-- TOP NAVBAR (Clean, Elegant GovTech Theme) -->
+  <!-- ======================================================== -->
+  <header class="bg-white border-b border-slate-200 sticky top-0 z-40">
+    <div class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+      <div class="flex justify-between items-center h-14 sm:h-16">
+        
+        <!-- Logo & Title -->
+        <div class="flex items-center space-x-2 sm:space-x-3 cursor-pointer" onclick="goToHome()">
+          <div class="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-slate-900 flex items-center justify-center text-white shadow-sm flex-shrink-0">
+            <i class="fa-solid fa-road text-base sm:text-lg"></i>
+          </div>
+          <div class="min-w-0">
+            <div class="flex items-center space-x-1.5">
+              <span class="text-base sm:text-lg font-bold tracking-tight text-slate-900">FixTogether</span>
+              <span class="bg-slate-100 text-slate-700 text-[9px] sm:text-[10px] px-1.5 py-0.5 rounded font-medium border border-slate-200 whitespace-nowrap">ระบบซ่อมทาง</span>
+            </div>
+            <p class="text-[10px] sm:text-[11px] text-slate-500 hidden md:block">Smart Road Damage Management & AI Analysis</p>
+          </div>
+        </div>
+
+        <!-- Right Menu -->
+        <div class="flex items-center space-x-2">
+
+          <!-- User Profile & Logout (When Authenticated) -->
+          <div id="nav-user-section" class="hidden flex items-center space-x-2 pl-2 border-l border-slate-200">
+            <div class="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-slate-100 text-slate-800 flex items-center justify-center font-bold text-xs border border-slate-200 flex-shrink-0" id="user-avatar">
+              สช
+            </div>
+            <div class="text-left hidden lg:block">
+              <div class="text-xs font-semibold text-slate-800 truncate max-w-[130px]" id="user-display-name">นายสมชาย รักสะอาด</div>
+              <div class="text-[10px] text-slate-500 truncate" id="user-display-role">ประชาชนทั่วไป</div>
+            </div>
+            <button onclick="logout()" class="text-xs bg-slate-100 hover:bg-rose-50 hover:text-rose-700 hover:border-rose-300 text-slate-600 border border-slate-200 px-2 sm:px-2.5 py-1.5 rounded-lg flex items-center transition font-medium" title="ออกจากระบบ">
+              <i class="fa-solid fa-right-from-bracket text-rose-500 sm:mr-1.5"></i>
+              <span class="hidden sm:inline">ออกจากระบบ</span>
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </header>
+
+  <!-- ======================================================== -->
+  <!-- LANDING / AUTH SCREEN (2 แท็บ เรียบหรู ใช้งานง่าย) -->
+  <!-- ======================================================== -->
+  <!-- ======================================================== -->
+  <!-- LANDING / AUTH SCREEN (Contact With Globe Style UI)      -->
+  <!-- ======================================================== -->
+  <section id="landing-auth-container" class="relative w-full bg-slate-50 overflow-hidden py-8 sm:py-14">
+    <div class="relative mx-auto max-w-7xl px-4 sm:px-6">
+      
+      <!-- Top Header (Pill Badge, Title, Description) -->
+      <div class="flex flex-col items-center text-center gap-3 mb-8 sm:mb-12">
+        <div class="inline-flex items-center px-4 py-1.5 rounded-full bg-blue-500/10 border border-blue-400/30 shadow-xs">
+          <span class="text-xs sm:text-sm text-blue-600 font-semibold flex items-center gap-1.5">
+            <i class="fa-solid fa-road-barrier"></i> FixTogether • ระบบรับแจ้งและจัดการซ่อมแซมถนนอัจฉริยะ
+          </span>
+        </div>
+
+        <h1 class="text-3xl sm:text-4xl md:text-5xl font-bold text-slate-900 tracking-tight">
+          เข้าสู่ระบบ FixTogether
+        </h1>
+
+        <p class="text-xs sm:text-sm text-slate-500 max-w-xl leading-relaxed">
+          ระบบบูรณาการข้อมูลการแจ้งซ่อมทางหลวงท้องถิ่น วิเคราะห์ความเสียหายด้วย AI 
+          เชื่อมโยงประชาชน หน่วยงานโยธา และทีมช่างซ่อมบำรุงภาคสนาม
+        </p>
+      </div>
+
+      <!-- Main 2-Column Grid (Left: SA Contact & 3D Globe, Right: Form Card with FormDots) -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 max-w-5xl mx-auto items-start">
+        
+        <!-- LEFT COLUMN: Contact Links & 3D Globe Wireframe -->
+        <div class="flex flex-col gap-6">
+          <div class="flex flex-col gap-1.5">
+            <h2 class="text-xl font-bold text-slate-900 flex items-center gap-2">
+              <i class="fa-solid fa-building-columns text-blue-600"></i>
+              ศูนย์บริการข้อมูล & ประสานงานส่วนกลาง
+            </h2>
+            <p class="text-xs sm:text-sm text-slate-500 leading-relaxed">
+              แจ้งเหตุถนนชำรุด สอบถามขั้นตอนการดำเนินงาน หรือติดต่อศูนย์ปฏิบัติการความปลอดภัยทางถนน
+            </p>
+          </div>
+
+          <!-- Contact Link Cards -->
+          <div class="flex flex-col gap-2.5">
+            <a href="tel:1555" class="group flex items-center gap-3 p-2.5 rounded-xl bg-white border border-slate-200/80 hover:border-blue-400 hover:shadow-xs transition duration-200">
+              <div class="w-9 h-9 rounded-lg bg-blue-50 text-blue-600 border border-blue-100 group-hover:bg-blue-600 group-hover:text-white flex items-center justify-center shrink-0 transition-all duration-200">
+                <i class="fa-solid fa-phone text-xs"></i>
+              </div>
+              <div class="min-w-0">
+                <div class="text-xs font-semibold text-slate-800 group-hover:text-blue-600 transition">สายด่วนบริการประชาชน 1555</div>
+                <div class="text-[11px] text-slate-400">โทรฟรีตลอด 24 ชั่วโมง รับเรื่องร้องทุกข์ทันด่วน</div>
+              </div>
+            </a>
+
+            <a href="mailto:contact@fixtogether.go.th" class="group flex items-center gap-3 p-2.5 rounded-xl bg-white border border-slate-200/80 hover:border-blue-400 hover:shadow-xs transition duration-200">
+              <div class="w-9 h-9 rounded-lg bg-slate-100 text-slate-600 border border-slate-200 group-hover:bg-blue-600 group-hover:text-white flex items-center justify-center shrink-0 transition-all duration-200">
+                <i class="fa-solid fa-envelope text-xs"></i>
+              </div>
+              <div class="min-w-0">
+                <div class="text-xs font-semibold text-slate-800 group-hover:text-blue-600 transition">contact@fixtogether.go.th</div>
+                <div class="text-[11px] text-slate-400">อีเมลประสานงานกลาง โครงการ FixTogether</div>
+              </div>
+            </a>
+
+            <div class="flex items-center gap-3 p-2.5 rounded-xl bg-white border border-slate-200/80">
+              <div class="w-9 h-9 rounded-lg bg-slate-100 text-slate-600 border border-slate-200 flex items-center justify-center shrink-0">
+                <i class="fa-solid fa-headset text-xs"></i>
+              </div>
+              <div class="min-w-0">
+                <div class="text-xs font-semibold text-slate-800">ศูนย์ประสานงานสำนักการโยธาและผังเมือง</div>
+                <div class="text-[11px] text-slate-400">โทร. 02-224-2950 (ในวันและเวลาราชการ 08.30 - 16.30 น.)</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 3D Interactive D3 Globe Container -->
+          <div class="relative overflow-hidden h-64 sm:h-72 rounded-2xl bg-slate-900 border border-slate-800 shadow-md flex items-center justify-center">
+            <svg id="globe-svg" class="w-full h-full max-w-[280px] max-h-[280px] cursor-grab active:cursor-grabbing select-none"></svg>
+            <div class="pointer-events-none absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-slate-900 to-transparent"></div>
+            
+            <div class="absolute bottom-2.5 left-3 text-[10px] text-slate-400 flex items-center gap-1.5 pointer-events-none bg-slate-900/80 px-2 py-0.5 rounded-full border border-slate-700/60">
+              <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+              <i class="fa-solid fa-earth-asia text-blue-400"></i>
+              <span>Interactive 3D Globe • แตะหรือลากเมาส์หมุนโลกได้</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- RIGHT COLUMN: Login / Register Form Card with FormDots -->
+        <div class="rounded-2xl border border-slate-200 bg-white p-5 sm:p-7 flex flex-col gap-4 shadow-sm">
+          
+          <div>
+            <h3 class="text-lg font-bold text-slate-900 mb-0.5">
+              เข้าใช้งานระบบ FixTogether
+            </h3>
+            <p class="text-xs text-slate-500">
+              กรอกข้อมูลเพื่อเข้าสู่ระบบ หรือสมัครบัญชีใหม่สำหรับประชาชน
+            </p>
+          </div>
+
+          <!-- FormDots: Separator with dotted pattern -->
+          <div class="relative w-full h-3 overflow-hidden flex items-center justify-center">
+            <div class="absolute inset-0 text-slate-300" style="background-image: radial-gradient(circle, currentColor 0.8px, transparent 0.8px); background-size: 6px 100%; mask-image: linear-gradient(to right, transparent 0%, black 10%, black 90%, transparent 100%);"></div>
+          </div>
+
+          <!-- MAIN 2 TABS: ประชาชนทั่วไป vs เจ้าหน้าที่ / ทีมช่าง -->
+          <div class="grid grid-cols-2 border border-slate-200 rounded-xl bg-slate-100/70 p-1 gap-1">
+            <button type="button" onclick="switchLandingTab('citizen')" id="btn-tab-citizen" class="py-2 px-3 rounded-lg text-xs font-semibold transition flex items-center justify-center space-x-2 bg-white text-slate-900 shadow-xs border border-slate-200/60">
+              <i class="fa-solid fa-user text-blue-600"></i>
+              <span>ประชาชนทั่วไป</span>
+            </button>
+            <button type="button" onclick="switchLandingTab('staff')" id="btn-tab-staff" class="py-2 px-3 rounded-lg text-xs font-semibold transition flex items-center justify-center space-x-2 text-slate-600 hover:text-slate-900">
+              <i class="fa-solid fa-shield-halved text-slate-500"></i>
+              <span>เจ้าหน้าที่ / ทีมช่าง</span>
+            </button>
+          </div>
+
+          <!-- TAB 1: ประชาชนทั่วไป (Login + สมัครสมาชิกใหม่) -->
+          <div id="auth-panel-citizen" class="space-y-4 pt-1">
+            
+            <div class="flex border-b border-slate-200 space-x-4 pb-2 text-xs">
+              <button type="button" onclick="setCitizenAuthMode('login')" id="btn-citizen-mode-login" class="font-semibold text-blue-600 border-b-2 border-blue-600 pb-2">
+                เข้าสู่ระบบ
+              </button>
+              <button type="button" onclick="setCitizenAuthMode('register')" id="btn-citizen-mode-register" class="text-slate-500 hover:text-slate-800 pb-2">
+                สมัครสมาชิกใหม่
+              </button>
+            </div>
+
+            <!-- Citizen Login Form -->
+            <div id="form-citizen-login" class="space-y-3.5">
+              <div>
+                <label class="block text-xs font-medium text-slate-700 mb-1">ชื่อผู้ใช้งาน หรือ เลขบัตรประชาชน</label>
+                <input type="text" id="citizen-login-user" value="somchai" class="w-full text-xs rounded-xl border border-slate-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" placeholder="เช่น somchai หรือ 1100500123456">
+              </div>
+
+              <div>
+                <label class="block text-xs font-medium text-slate-700 mb-1">รหัสผ่าน</label>
+                <input type="password" id="citizen-login-pass" value="1234" class="w-full text-xs rounded-xl border border-slate-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" placeholder="รหัสผ่าน">
+              </div>
+
+              <button type="button" onclick="handleCitizenLogin()" class="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold shadow-sm transition flex items-center justify-center space-x-2 group">
+                <span>เข้าสู่ระบบประชาชน</span>
+                <i class="fa-solid fa-arrow-right text-xs transition-transform duration-200 group-hover:translate-x-1"></i>
+              </button>
+
+              <div class="pt-2 border-t border-slate-100 text-center">
+                <button type="button" onclick="quickLoginDemo('somchai')" class="text-[11px] text-blue-600 hover:text-blue-800 font-medium inline-flex items-center">
+                  <i class="fa-solid fa-bolt text-amber-500 mr-1.5"></i> ทดลองเข้าสู่ระบบทันที (นายสมชาย - ประชาชน)
+                </button>
+              </div>
+            </div>
+
+            <!-- Citizen Register Form with OTP Flow -->
+            <div id="form-citizen-register" class="space-y-3 hidden">
+              <div>
+                <label class="block text-[11px] font-medium text-slate-700 mb-1">รหัสประจำตัวประชาชน 13 หลัก *</label>
+                <input type="text" id="reg-citizen-id" maxlength="13" class="w-full text-xs rounded-xl border border-slate-300 px-3 py-2 focus:ring-2 focus:ring-blue-500" placeholder="1100500999888">
+              </div>
+              <div>
+                <label class="block text-[11px] font-medium text-slate-700 mb-1">ชื่อ-นามสกุลจริง *</label>
+                <input type="text" id="reg-fullname" class="w-full text-xs rounded-xl border border-slate-300 px-3 py-2 focus:ring-2 focus:ring-blue-500" placeholder="นายจิตอาสา พัฒนาเมือง">
+              </div>
+              <div class="grid grid-cols-2 gap-2">
+                <div>
+                  <label class="block text-[11px] font-medium text-slate-700 mb-1">ชื่อผู้ใช้งาน *</label>
+                  <input type="text" id="reg-username" class="w-full text-xs rounded-xl border border-slate-300 px-3 py-2 focus:ring-2 focus:ring-blue-500" placeholder="username">
+                </div>
+                <div>
+                  <label class="block text-[11px] font-medium text-slate-700 mb-1">เบอร์โทรศัพท์ *</label>
+                  <input type="tel" id="reg-phone" class="w-full text-xs rounded-xl border border-slate-300 px-3 py-2 focus:ring-2 focus:ring-blue-500" placeholder="089-111-2233">
+                </div>
+              </div>
+              <div>
+                <label class="block text-[11px] font-medium text-slate-700 mb-1">รหัสผ่าน *</label>
+                <input type="password" id="reg-password" class="w-full text-xs rounded-xl border border-slate-300 px-3 py-2 focus:ring-2 focus:ring-blue-500" placeholder="รหัสผ่าน">
+              </div>
+
+              <button type="button" id="btn-start-register-otp" onclick="initiateCitizenOTPRegistration()" class="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold shadow-sm transition flex items-center justify-center space-x-2 group">
+                <i class="fa-solid fa-mobile-screen-button"></i>
+                <span>สมัครสมาชิก & ขอรับรหัส OTP</span>
+                <i class="fa-solid fa-arrow-right text-xs transition-transform duration-200 group-hover:translate-x-1"></i>
+              </button>
+            </div>
+
+          </div>
+
+          <!-- TAB 2: เจ้าหน้าที่ / ทีมช่าง (ไม่มีปุ่มสมัครสมาชิก) -->
+          <div id="auth-panel-staff" class="space-y-4 hidden pt-1">
+            <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl text-[11px] text-slate-600">
+              <i class="fa-solid fa-lock text-slate-400 mr-1.5"></i>
+              สำหรับบุคลากรหน่วยงานภาครัฐและทีมช่างซ่อมบำรุงภาคสนาม
+            </div>
+
+            <div class="space-y-3.5">
+              <div>
+                <label class="block text-xs font-medium text-slate-700 mb-1">รหัสเจ้าหน้าที่ / อีเมลองค์กร</label>
+                <input type="text" id="staff-login-user" value="admin_bma" class="w-full text-xs rounded-xl border border-slate-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" placeholder="เช่น admin_bma หรือ mechanic_jack">
+              </div>
+
+              <div>
+                <label class="block text-xs font-medium text-slate-700 mb-1">รหัสผ่าน</label>
+                <input type="password" id="staff-login-pass" value="1234" class="w-full text-xs rounded-xl border border-slate-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" placeholder="รหัสผ่าน">
+              </div>
+
+              <button type="button" onclick="handleStaffLogin()" class="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-semibold shadow-sm transition flex items-center justify-center space-x-2 group">
+                <span>เข้าสู่ระบบเจ้าหน้าที่</span>
+                <i class="fa-solid fa-arrow-right text-xs transition-transform duration-200 group-hover:translate-x-1"></i>
+              </button>
+
+              <!-- Quick Demo Shortcut for Staff -->
+              <div class="pt-2 border-t border-slate-100 space-y-1.5 text-center">
+                <div class="text-[10px] text-slate-400">เข้าสู่ระบบด่วนสำหรับเดโม:</div>
+                <div class="flex gap-2">
+                  <button type="button" onclick="quickLoginDemo('admin_bma')" class="flex-1 text-[11px] py-1.5 px-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg border border-slate-200 transition font-medium">
+                    🏛️ เจ้าหน้าที่เขต (วิภาดา)
+                  </button>
+                  <button type="button" onclick="quickLoginDemo('mechanic_jack')" class="flex-1 text-[11px] py-1.5 px-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg border border-slate-200 transition font-medium">
+                    🔧 ทีมช่าง (เอกชัย)
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ======================================================== -->
+  <!-- MAIN WORKSPACE CONTAINER (เมื่อเข้าสู่ระบบแล้ว) -->
+  <!-- ======================================================== -->
+  <main id="app-workspace-container" class="hidden max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 flex-grow w-full">
+
+    <!-- ========================================== -->
+    <!-- VIEW 1: CITIZEN VIEW (ประชาชน) -->
+    <!-- ========================================== -->
+    <div id="view-citizen" class="space-y-5 hidden">
+      <!-- Mobile-friendly 2 Tabs -->
+      <div class="grid grid-cols-2 border-b border-slate-200 bg-white sm:bg-transparent rounded-xl sm:rounded-none p-1 sm:p-0 gap-1 sm:gap-6 shadow-sm sm:shadow-none">
+        <button onclick="setCitizenTab('report')" id="tab-btn-report" class="py-2.5 sm:pb-3 text-xs sm:text-sm font-semibold border-b-2 border-blue-600 text-blue-600 flex items-center justify-center">
+          <i class="fa-solid fa-camera mr-1.5 sm:mr-2"></i> แจ้งถนนเสียหาย
+        </button>
+        <button onclick="setCitizenTab('history')" id="tab-btn-history" class="py-2.5 sm:pb-3 text-xs sm:text-sm font-medium text-slate-500 hover:text-slate-800 flex items-center justify-center">
+          <i class="fa-solid fa-list-check mr-1.5 sm:mr-2"></i> ติดตามสถานะ/ประวัติ
+        </button>
+      </div>
+
+      <!-- TAB 1: FORM แจ้งเหตุ -->
+      <div id="citizen-tab-report" class="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-5">
+        <div class="lg:col-span-7 bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-slate-200 space-y-3.5 sm:space-y-4">
+          <div>
+            <h2 class="text-sm sm:text-base font-bold text-slate-900">แจ้งเหตุถนนชำรุดเสียหาย</h2>
+            <p class="text-[11px] sm:text-xs text-slate-500">แนบภาพถ่ายและพิกัดเพื่อให้ AI วิเคราะห์และส่งต่อเจ้าหน้าที่</p>
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">ภาพถ่ายความเสียหาย *</label>
+            <div class="border-2 border-dashed border-blue-300 rounded-xl p-4 text-center hover:border-blue-500 transition cursor-pointer relative bg-blue-50/30">
+              <!-- capture='environment' allows mobile phone to open camera directly -->
+              <input type="file" id="report-image-input" accept="image/*" capture="environment" class="absolute inset-0 opacity-0 cursor-pointer" onchange="handleImageSelect(event)">
+              <div id="upload-placeholder" class="py-2 sm:py-3">
+                <div class="w-11 h-11 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center mx-auto mb-2 text-xl shadow-xs">
+                  <i class="fa-solid fa-camera"></i>
+                </div>
+                <div class="text-xs font-semibold text-slate-800">แตะเพื่อถ่ายภาพจากกล้อง หรือเลือกรูป</div>
+                <div class="text-[10px] text-slate-400 mt-0.5">รองรับไฟล์ JPG, PNG (หรือกดเลือกภาพตัวอย่างด้านล่าง)</div>
+              </div>
+              <div id="preview-container" class="hidden relative max-h-64 mx-auto overflow-hidden rounded-lg">
+                <img id="preview-img" class="w-full h-auto max-h-64 object-contain rounded-lg" alt="Preview">
+              </div>
+            </div>
+
+            <!-- Presets -->
+            <div class="flex flex-wrap gap-1.5 mt-2">
+              <span class="text-[10px] sm:text-[11px] text-slate-400 self-center mr-1">ภาพตัวอย่าง:</span>
+              <button type="button" onclick="selectSampleImage('/static/sample_images/pothole_1.jpg', 'หลุมบ่อขนาดใหญ่บนถนนสายหลัก รถต้องชะลอหลบ')" class="text-[11px] px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg border border-slate-200">หลุมบ่อ (Pothole)</button>
+              <button type="button" onclick="selectSampleImage('/static/sample_images/crack_1.jpg', 'ผิวถนนแตกลายงาเป็นบริเวณกว้าง มีเศษหินร่อน')" class="text-[11px] px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg border border-slate-200">ผิวแตกร้าว (Crack)</button>
+              <button type="button" onclick="selectSampleImage('/static/sample_images/depression_1.jpg', 'ผิวทางทรุดตัวเป็นแอ่งลึก ฝนตกน้ำขัง')" class="text-[11px] px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg border border-slate-200">ถนนทรุดตัว (Depression)</button>
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">รายละเอียดปัญหา *</label>
+            <textarea id="report-description" rows="3" class="w-full text-xs sm:text-xs rounded-xl border border-slate-300 p-2.5 focus:ring-2 focus:ring-blue-500" placeholder="ระบุรายละเอียด เช่น หลุมลึกประมาณ 10 ซม. เลนซ้าย เสี่ยงต่อการเกิดอุบัติเหตุ"></textarea>
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">สถานที่เกิดเหตุ *</label>
+            <div class="flex space-x-2">
+              <input type="text" id="report-address" class="flex-grow text-xs rounded-xl border border-slate-300 px-3 py-2.5 focus:ring-2 focus:ring-blue-500" placeholder="เช่น ถ.พหลโยธิน ปากซอย 18/1 จตุจักร">
+              <button type="button" onclick="useCurrentLocation()" class="px-3 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-medium border border-slate-300 flex items-center whitespace-nowrap active:scale-95 transition">
+                <i class="fa-solid fa-location-crosshairs mr-1 text-blue-600"></i> ดึง GPS
+              </button>
+            </div>
+            <div class="text-[10px] text-slate-400 mt-1 flex justify-between">
+              <span>พิกัด: <span id="disp-lat">13.8034</span>, <span id="disp-lng">100.5538</span></span>
+              <span class="text-blue-600 font-medium cursor-pointer" onclick="useCurrentLocation()">แตะเพื่อใช้ GPS เครื่อง</span>
+            </div>
+          </div>
+
+          <button type="button" onclick="submitDamageReport()" id="btn-submit-report" class="w-full py-3 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-xl text-xs sm:text-sm font-semibold shadow-sm transition flex items-center justify-center space-x-2">
+            <i class="fa-solid fa-paper-plane"></i>
+            <span>ยืนยันการแจ้งเหตุ</span>
+          </button>
+        </div>
+
+        <div class="lg:col-span-5 bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-col space-y-3">
+          <div>
+            <h3 class="text-xs font-bold text-slate-900">ระบุพิกัดบนแผนที่</h3>
+            <p class="text-[11px] text-slate-500">คลิกหรือลากหมุดเพื่อปรับตำแหน่ง</p>
+          </div>
+          <div id="report-map" class="w-full flex-grow h-64 sm:h-72 rounded-xl border border-slate-200 z-10"></div>
+          
+          <div id="live-ai-card" class="bg-slate-900 text-white p-3.5 rounded-xl text-xs space-y-2">
+            <div class="flex justify-between items-center pb-1.5 border-b border-slate-800 text-[11px]">
+              <span class="text-slate-400 font-medium">ผลการวิเคราะห์ AI เบื้องต้น</span>
+              <span class="text-slate-400 text-[10px]">RoadVision Engine</span>
+            </div>
+            <div class="grid grid-cols-2 gap-2 text-[11px]">
+              <div><span class="text-slate-400 block text-[10px]">ประเภท:</span> <strong id="ai-prev-type" class="text-slate-100">รอภาพถ่าย...</strong></div>
+              <div><span class="text-slate-400 block text-[10px]">ความรุนแรง:</span> <strong id="ai-prev-sev" class="text-slate-100">-</strong></div>
+              <div><span class="text-slate-400 block text-[10px]">งบประมาณประเมิน:</span> <strong id="ai-prev-budget" class="text-slate-100">-</strong></div>
+              <div><span class="text-slate-400 block text-[10px]">ความแม่นยำ:</span> <strong id="ai-prev-conf" class="text-slate-100">-</strong></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 2: ประวัติและการติดตามสถานะ -->
+      <div id="citizen-tab-history" class="hidden space-y-4">
+        <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
+          <div class="flex justify-between items-center mb-4">
+            <div>
+              <h2 class="text-base font-bold text-slate-900">ประวัติการแจ้งเหตุของคุณ</h2>
+              <p class="text-xs text-slate-500">ติดตามขั้นตอนการดำเนินงานและการแก้ไขปัญหาถนน</p>
+            </div>
+            <button onclick="loadCitizenCases()" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg border border-slate-200">
+              <i class="fa-solid fa-rotate mr-1"></i> รีเฟรช
+            </button>
+          </div>
+          <div id="citizen-cases-list" class="space-y-3">
+            <div class="text-center py-8 text-slate-400 text-xs">กำลังโหลดข้อมูล...</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ======================================================== -->
+    <!-- VIEW 2: AUTHORITY VIEW (หน่วยงานผู้ดูแลพื้นที่) -->
+    <!-- ======================================================== -->
+    <div id="view-authority" class="space-y-5 hidden">
+      
+      <!-- KPI Stats -->
+      <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        <div class="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm">
+          <span class="text-[11px] text-slate-500 block">เคสทั้งหมด</span>
+          <div class="text-xl font-bold text-slate-800 mt-0.5" id="kpi-total">0</div>
+        </div>
+        <div class="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm">
+          <span class="text-[11px] text-amber-700 block font-medium">รอตรวจสอบ</span>
+          <div class="text-xl font-bold text-amber-600 mt-0.5" id="kpi-pending">0</div>
+        </div>
+        <div class="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm">
+          <span class="text-[11px] text-orange-700 block font-medium">กำลังซ่อมแซม</span>
+          <div class="text-xl font-bold text-orange-600 mt-0.5" id="kpi-progress">0</div>
+        </div>
+        <div class="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm">
+          <span class="text-[11px] text-emerald-700 block font-medium">ปิดงานสำเร็จ</span>
+          <div class="text-xl font-bold text-emerald-600 mt-0.5" id="kpi-completed">0</div>
+        </div>
+        <div class="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm">
+          <span class="text-[11px] text-slate-500 block">งบประมาณรวม</span>
+          <div class="text-lg font-bold text-slate-800 mt-0.5" id="kpi-budget">฿0</div>
+        </div>
+        <div class="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm">
+          <span class="text-[11px] text-slate-500 block">ความพึงพอใจเฉลี่ย</span>
+          <div class="text-xl font-bold text-amber-500 mt-0.5 flex items-baseline">
+            <span id="kpi-rating">0.0</span>
+            <span class="text-[10px] text-slate-400 ml-1">/5.0</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Map & Chart Section -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
+        <div class="lg:col-span-8 bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-slate-200">
+          <div class="flex justify-between items-center mb-3">
+            <div>
+              <h3 class="text-xs sm:text-sm font-bold text-slate-900">แผนที่จุดแจ้งเหตุในความรับผิดชอบ</h3>
+              <p class="text-[11px] text-slate-500">คลิกที่หมุดเพื่อดูข้อมูลและเปิดดูรายละเอียดเคส</p>
+            </div>
+            <div class="flex items-center space-x-2 text-[10px] text-slate-600">
+              <span class="flex items-center"><span class="w-2 h-2 rounded-full bg-amber-500 mr-1"></span> รอตรวจ</span>
+              <span class="flex items-center"><span class="w-2 h-2 rounded-full bg-blue-500 mr-1"></span> ซ่อมอยู่</span>
+              <span class="flex items-center"><span class="w-2 h-2 rounded-full bg-emerald-500 mr-1"></span> ปิดงาน</span>
+            </div>
+          </div>
+          <div id="authority-map" class="w-full h-72 sm:h-80 rounded-xl border border-slate-200 z-10"></div>
+        </div>
+
+        <div class="lg:col-span-4 bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-col justify-between">
+          <div>
+            <h3 class="text-xs sm:text-sm font-bold text-slate-900">สัดส่วนความรุนแรง (AI Report)</h3>
+            <p class="text-[11px] text-slate-500">จำแนกตามผลประเมินของโมเดล AI</p>
+          </div>
+          <div class="relative h-56 my-2 flex items-center justify-center">
+            <canvas id="severityChart"></canvas>
+          </div>
+          <div class="text-[10px] text-slate-400 text-center">อัปเดตตามฐานข้อมูลเคสจริง</div>
+        </div>
+      </div>
+
+      <!-- Table Section -->
+      <div class="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-slate-200">
+        <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-3 mb-4">
+          <div>
+            <h3 class="text-sm font-bold text-slate-900">รายการคำร้องและใบงานทั้งหมดในพื้นที่</h3>
+            <p class="text-[11px] text-slate-500">ตรวจสอบรายงานจาก AI พิจารณาอนุมัติงบ ออกใบงานซ่อม ตรวจรับ และกดดูรายละเอียดได้ทุกเคส</p>
+          </div>
+          
+          <!-- Comprehensive State Filter -->
+          <div class="flex items-center space-x-2">
+            <label class="text-xs text-slate-500 whitespace-nowrap">กรองสถานะ:</label>
+            <select id="authority-filter-status" onchange="loadAuthorityCases()" class="text-xs bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5 focus:ring-2 focus:ring-blue-500 font-medium">
+              <option value="">ทั้งหมดทุกสถานะ</option>
+              <option value="รอตรวจสอบ">รอตรวจสอบ (Pending)</option>
+              <option value="มอบหมายงานแล้ว">มอบหมายงานแล้ว (Assigned)</option>
+              <option value="กำลังดำเนินการซ่อม">กำลังดำเนินการซ่อม (In Progress)</option>
+              <option value="รอตรวจรับงาน">รอตรวจรับงาน (Under Inspection)</option>
+              <option value="สั่งแก้ไขงาน">สั่งแก้ไขงาน (Revision)</option>
+              <option value="ปิดงานซ่อมบำรุง">ปิดงานซ่อมบำรุงแล้ว (Closed)</option>
+              <option value="ปฏิเสธเคส">ปฏิเสธเคส (Rejected)</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Mobile Card View (For Mobile Phones < md) -->
+        <div class="md:hidden space-y-3" id="authority-cases-mobile-list">
+          <div class="text-center py-6 text-slate-400 text-xs">กำลังโหลดรายการเคส...</div>
+        </div>
+
+        <!-- Desktop Table View (For Tablets & Desktop >= md) -->
+        <div class="hidden md:block overflow-x-auto rounded-xl border border-slate-200">
+          <table class="w-full text-left text-xs min-w-[700px]">
+            <thead class="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200">
+              <tr>
+                <th class="py-2.5 px-3">รหัสเคส</th>
+                <th class="py-2.5 px-3">จุดเกิดเหตุ</th>
+                <th class="py-2.5 px-3">ผลวิเคราะห์ AI</th>
+                <th class="py-2.5 px-3">งบประมาณ</th>
+                <th class="py-2.5 px-3">สถานะ</th>
+                <th class="py-2.5 px-3">ผู้รับผิดชอบ</th>
+                <th class="py-2.5 px-3 text-center">การจัดการ</th>
+              </tr>
+            </thead>
+            <tbody id="authority-cases-tbody" class="divide-y divide-slate-100">
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================================== -->
+    <!-- VIEW 3: TECHNICIAN VIEW (ทีมช่างซ่อมบำรุง) -->
+    <!-- ============================================================== -->
+    <div id="view-technician" class="space-y-5 hidden">
+      <div class="bg-slate-900 rounded-2xl p-5 text-white shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+        <div>
+          <span class="bg-slate-800 text-slate-300 text-[10px] px-2 py-0.5 rounded font-medium border border-slate-700">ทีมช่างซ่อมบำรุงภาคสนาม</span>
+          <h2 class="text-base font-bold mt-1.5">ใบงานซ่อมบำรุงของฉัน (My Work Orders)</h2>
+          <p class="text-xs text-slate-400">ลงพื้นที่ซ่อมแซม บันทึกผลงาน และส่งภาพหลังซ่อมเพื่อขอตรวจรับ</p>
+        </div>
+        <button onclick="loadTechnicianOrders()" class="bg-slate-800 hover:bg-slate-700 text-white text-xs px-3 py-1.5 rounded-lg border border-slate-700 flex items-center">
+          <i class="fa-solid fa-arrows-rotate mr-1.5"></i> รีเฟรชใบงาน
+        </button>
+      </div>
+
+      <div id="technician-orders-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      </div>
+    </div>
+
+  </main>
+
+  <!-- ======================================================== -->
+  <!-- FLOATING QUICK SWITCH TOOLBAR (โหมดพรีเซนต์ / Demo Mode)  -->
+  <!-- ======================================================== -->
+  <div id="demo-quick-switcher" class="fixed bottom-4 right-4 z-50 transition-all duration-200">
+    <div class="bg-slate-900 text-white border border-slate-800 rounded-xl shadow-xl p-2.5 flex flex-col space-y-1.5">
+      <div class="flex items-center justify-between pb-1 border-b border-slate-800">
+        <span class="text-[10px] font-bold text-amber-300 flex items-center">
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 mr-1.5 animate-pulse"></span>
+          Demo Mode Quick Switch
+        </span>
+        <button onclick="toggleDemoBar()" class="text-slate-400 hover:text-white text-xs ml-3" title="ย่อ/ขยาย">
+          <i id="demo-toggle-icon" class="fa-solid fa-chevron-down"></i>
+        </button>
+      </div>
+
+      <div id="demo-buttons-container" class="flex flex-col sm:flex-row gap-1 text-xs">
+        <button onclick="quickLoginDemo('somchai')" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] font-medium transition">
+          👤 ประชาชน
+        </button>
+        <button onclick="quickLoginDemo('admin_bma')" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] font-medium transition">
+          🏛️ เจ้าหน้าที่เขต
+        </button>
+        <button onclick="quickLoginDemo('mechanic_jack')" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] font-medium transition">
+          🔧 ทีมช่าง
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================= -->
+  <!-- MODALS -->
+  <!-- ======================================================= -->
+
+  <!-- MODAL: FULL CASE DETAILS (ดูรายละเอียดแต่ละเคสตามที่ขอ) -->
+  <div id="modal-case-detail" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+    <div class="bg-white rounded-2xl max-w-3xl w-full max-h-[90vh] flex flex-col shadow-xl border border-slate-200 overflow-hidden my-auto">
+      
+      <!-- Modal Header -->
+      <div class="flex justify-between items-center p-4 border-b border-slate-200 bg-slate-50">
+        <div class="flex items-center space-x-2">
+          <span class="text-sm font-bold text-slate-900" id="dt-case-id">CASE-2026-XXX</span>
+          <span id="dt-status-badge"></span>
+        </div>
+        <button onclick="closeModal('modal-case-detail')" class="text-slate-400 hover:text-slate-600 text-base">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <!-- Modal Body (Scrollable) -->
+      <div class="p-4 sm:p-6 overflow-y-auto space-y-4 text-xs text-slate-700">
+        
+        <!-- Location & Basic Info -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+          <div>
+            <span class="text-slate-400 block text-[10px]">สถานที่เกิดเหตุ:</span>
+            <strong class="text-slate-800 text-xs block mt-0.5" id="dt-location">-</strong>
+            <span class="text-slate-500 text-[10px] mt-1 block">พิกัด GPS: <span id="dt-coords">-</span></span>
+          </div>
+          <div>
+            <span class="text-slate-400 block text-[10px]">ผู้แจ้งเหตุ:</span>
+            <strong class="text-slate-800 text-xs block mt-0.5" id="dt-reporter">-</strong>
+            <span class="text-slate-500 text-[10px] mt-1 block">วันที่แจ้ง: <span id="dt-created-at">-</span></span>
+          </div>
+        </div>
+
+        <!-- Description -->
+        <div>
+          <span class="text-slate-500 font-semibold block mb-1">รายละเอียดปัญหาที่ได้รับแจ้ง:</span>
+          <p class="p-3 bg-white border border-slate-200 rounded-xl text-slate-700" id="dt-description">-</p>
+        </div>
+
+        <!-- Images Section: Before vs After (If Available) -->
+        <div>
+          <span class="text-slate-500 font-semibold block mb-2">ภาพถ่ายความเสียหาย & ภาพหลังการซ่อมแซม:</span>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div class="border rounded-xl p-2 bg-slate-50 text-center">
+              <span class="text-[10px] font-semibold text-slate-600 block mb-1">ภาพขณะแจ้งเหตุ (ก่อนซ่อม)</span>
+              <img id="dt-before-img" class="w-full h-44 object-cover rounded-lg border border-slate-200" src="" alt="Before">
+            </div>
+            <div id="dt-after-box" class="border rounded-xl p-2 bg-slate-50 text-center">
+              <span class="text-[10px] font-semibold text-emerald-700 block mb-1">ภาพถ่ายผลงาน (หลังซ่อมแซม)</span>
+              <img id="dt-after-img" class="w-full h-44 object-cover rounded-lg border border-slate-200" src="" alt="After">
+              <span id="dt-no-after-img" class="hidden text-slate-400 text-[11px] py-16 block">ยังไม่มีภาพหลังซ่อมแซม</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- AI Report Summary -->
+        <div id="dt-ai-box" class="border border-slate-200 rounded-xl p-3.5 bg-slate-50 space-y-2">
+          <div class="flex justify-between items-center pb-1.5 border-b border-slate-200">
+            <span class="font-bold text-slate-800">ผลการวิเคราะห์จาก AI (AI Report)</span>
+            <span class="text-[10px] text-slate-500" id="dt-ai-model">RoadVision-v2.4</span>
+          </div>
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px]">
+            <div><span class="text-slate-400 block text-[10px]">ประเภทความเสียหาย:</span><strong id="dt-ai-type">-</strong></div>
+            <div><span class="text-slate-400 block text-[10px]">ระดับความรุนแรง:</span><strong id="dt-ai-sev">-</strong></div>
+            <div><span class="text-slate-400 block text-[10px]">งบประมาณประเมิน:</span><strong id="dt-ai-budget">-</strong></div>
+            <div><span class="text-slate-400 block text-[10px]">ความแม่นยำ AI:</span><strong id="dt-ai-conf">-</strong></div>
+          </div>
+          <div class="pt-1">
+            <span class="text-slate-400 text-[10px] block">คำแนะนำวิธีการซ่อม:</span>
+            <p class="text-slate-700 text-[11px]" id="dt-ai-recom">-</p>
+          </div>
+        </div>
+
+        <!-- Work Order Information (If exists) -->
+        <div id="dt-wo-box" class="border border-slate-200 rounded-xl p-3.5 bg-slate-50 space-y-2 hidden">
+          <div class="flex justify-between items-center pb-1.5 border-b border-slate-200">
+            <span class="font-bold text-slate-800">ข้อมูลใบงานซ่อมบำรุง (Repair Work Order)</span>
+            <span class="text-slate-600 font-semibold" id="dt-wo-id">WO-2026-XXX</span>
+          </div>
+          <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 text-[11px]">
+            <div><span class="text-slate-400 block text-[10px]">ช่างผู้รับผิดชอบ:</span><strong id="dt-wo-tech">-</strong></div>
+            <div><span class="text-slate-400 block text-[10px]">ทีมช่าง:</span><strong id="dt-wo-team">-</strong></div>
+            <div><span class="text-slate-400 block text-[10px]">งบประมาณที่อนุมัติ:</span><strong id="dt-wo-budget" class="text-emerald-700">-</strong></div>
+          </div>
+          <div id="dt-wo-notes-box" class="pt-1 hidden">
+            <span class="text-slate-400 text-[10px] block">บันทึกผลการปฏิบัติงานของช่าง:</span>
+            <p class="text-slate-700 text-[11px]" id="dt-wo-notes">-</p>
+          </div>
+          <div id="dt-wo-inspect-box" class="pt-1 hidden">
+            <span class="text-amber-700 font-semibold text-[10px] block"><i class="fa-solid fa-clipboard-check mr-1"></i> บันทึกข้อสั่งการ/ผลตรวจรับงานจากหน่วยงาน:</span>
+            <p class="text-slate-800 text-[11px] bg-amber-50/80 p-2 rounded-lg border border-amber-200 mt-0.5" id="dt-wo-inspect">-</p>
+          </div>
+        </div>
+
+        <!-- Citizen Feedback Section (If exists) -->
+        <div id="dt-fb-box" class="border border-amber-200 rounded-xl p-3.5 bg-amber-50/50 space-y-1.5 hidden">
+          <div class="flex justify-between items-center">
+            <span class="font-bold text-slate-800" id="dt-fb-title">ผลการประเมินความพึงพอใจของประชาชน</span>
+            <span class="text-amber-500 font-bold" id="dt-fb-stars">★★★★★</span>
+          </div>
+          <p class="text-slate-700 text-[11px] italic" id="dt-fb-comments">-</p>
+          <span class="text-[10px] text-slate-400 block text-right" id="dt-fb-time">-</span>
+        </div>
+
+        <!-- Reject Reason (If rejected) -->
+        <div id="dt-reject-box" class="border border-rose-200 rounded-xl p-3 bg-rose-50 text-rose-800 hidden">
+          <strong class="block mb-0.5">เหตุผลที่ปฏิเสธเคส:</strong>
+          <p id="dt-reject-reason">-</p>
+        </div>
+
+      </div>
+
+      <!-- Modal Footer with Quick Actions -->
+      <div class="p-3 border-t border-slate-200 bg-slate-50 flex justify-between items-center">
+        <button onclick="closeModal('modal-case-detail')" class="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl text-xs font-medium">ปิด</button>
+        <div id="dt-actions" class="flex space-x-2">
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- MODAL: APPROVE & ASSIGN WORK ORDER -->
+  <div id="modal-approve" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full p-5 shadow-xl border border-slate-200 space-y-3.5">
+      <div class="flex justify-between items-center border-b pb-2.5">
+        <h3 class="text-sm font-bold text-slate-900">อนุมัติเคสและออกใบงานซ่อม</h3>
+        <button onclick="closeModal('modal-approve')" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <input type="hidden" id="approve-case-id">
+      <div>
+        <span class="text-[11px] text-slate-400">รหัสเคส:</span>
+        <strong id="approve-disp-case-id" class="text-xs text-blue-700 block">CASE-2026-XXX</strong>
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-slate-700 mb-1">เลือกเจ้าหน้าที่/ทีมช่างผู้รับผิดชอบ *</label>
+        <select id="approve-tech-id" class="w-full text-xs rounded-xl border border-slate-300 p-2.5 bg-white"></select>
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-slate-700 mb-1">งบประมาณที่อนุมัติ (บาท) *</label>
+        <input type="number" id="approve-budget" class="w-full text-xs rounded-xl border border-slate-300 p-2.5 font-bold" placeholder="15000">
+        <span class="text-[10px] text-slate-400 mt-1 block">แนะนำตาม AI: <span id="approve-ai-budget-hint" class="text-blue-600 font-medium">-</span> บาท</span>
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-slate-700 mb-1">ข้อสั่งการเพิ่มเติม</label>
+        <textarea id="approve-notes" rows="2" class="w-full text-xs rounded-xl border border-slate-300 p-2" placeholder="เช่น ดำเนินการซ่อมในช่วงกลางคืนเพื่อเลี่ยงการจราจรติดขัด"></textarea>
+      </div>
+      <div class="flex space-x-2 pt-1">
+        <button onclick="closeModal('modal-approve')" class="w-1/2 py-2 border border-slate-300 text-slate-700 rounded-xl text-xs font-medium">ยกเลิก</button>
+        <button onclick="confirmApproveCase()" class="w-1/2 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-medium">ออกใบงาน</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: REJECT CASE -->
+  <div id="modal-reject" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full p-5 shadow-xl border border-slate-200 space-y-3.5">
+      <div class="flex justify-between items-center border-b pb-2.5">
+        <h3 class="text-sm font-bold text-rose-600">ปฏิเสธเคสแจ้งซ่อม</h3>
+        <button onclick="closeModal('modal-reject')" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <input type="hidden" id="reject-case-id">
+      <div>
+        <span class="text-[11px] text-slate-400">รหัสเคส:</span>
+        <strong id="reject-disp-case-id" class="text-xs text-slate-800 block">CASE-2026-XXX</strong>
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-slate-700 mb-1">ระบุเหตุผลในการปฏิเสธคำขอ *</label>
+        <textarea id="reject-reason" rows="3" class="w-full text-xs rounded-xl border border-slate-300 p-2.5" placeholder="เช่น เป็นถนนส่วนบุคคลในหมู่บ้านจัดสรร ไม่อยู่ในพื้นที่รับผิดชอบของหน่วยงาน"></textarea>
+      </div>
+      <div class="flex space-x-2 pt-1">
+        <button onclick="closeModal('modal-reject')" class="w-1/2 py-2 border border-slate-300 text-slate-700 rounded-xl text-xs font-medium">ยกเลิก</button>
+        <button onclick="confirmRejectCase()" class="w-1/2 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-medium">ยืนยันปฏิเสธ</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: TECHNICIAN SUBMIT REPAIRED WORK (พร้อม Presets รูปตัวอย่างหลังซ่อม) -->
+  <div id="modal-submit-work" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+    <div class="bg-white rounded-2xl max-w-lg w-full p-4 sm:p-5 shadow-xl border border-slate-200 space-y-3.5 max-h-[92vh] overflow-y-auto my-auto">
+      <div class="flex justify-between items-center border-b pb-2.5">
+        <h3 class="text-sm font-bold text-slate-900">ส่งมอบผลงานการซ่อมแซม</h3>
+        <button onclick="closeModal('modal-submit-work')" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <input type="hidden" id="submit-wo-id">
+      <div>
+        <span class="text-[11px] text-slate-400">รหัสใบงาน:</span>
+        <strong id="submit-disp-wo-id" class="text-xs text-slate-800 block">WO-2026-XXX</strong>
+      </div>
+
+      <!-- After Image Upload with Multiple Sample Presets -->
+      <div>
+        <label class="block text-xs font-semibold text-slate-700 mb-1">ภาพถ่ายหลังซ่อมแซมเสร็จสิ้น *</label>
+        <div class="border-2 border-dashed border-slate-300 rounded-xl p-3 text-center bg-slate-50 relative">
+          <!-- capture="environment" enables live phone camera capture -->
+          <input type="file" id="submit-after-file" accept="image/*" capture="environment" class="absolute inset-0 opacity-0 cursor-pointer" onchange="previewSubmitAfterImg(event)">
+          <div id="submit-img-placeholder" class="py-2 text-xs text-slate-500">
+            <i class="fa-solid fa-camera text-slate-400 text-lg block mb-1"></i>
+            แตะเพื่อถ่ายภาพจากกล้อง หรือเลือกไฟล์รูป
+          </div>
+          <img id="submit-after-preview" class="hidden max-h-44 mx-auto rounded-lg object-contain" alt="Preview">
+        </div>
+
+        <!-- Presets -->
+        <div class="mt-2 space-y-1">
+          <span class="text-[10px] text-slate-400 block">เลือกรูปตัวอย่างหลังซ่อมสำเร็จ (สำหรับทดสอบ):</span>
+          <div class="flex flex-wrap gap-1.5">
+            <button type="button" onclick="selectSampleAfterImg('/static/sample_images/pothole_1_repaired.jpg', 'ซ่อมหลุมบ่อด้วยยางมะตอยผสมร้อน บดอัดเรียบเนียนเสมอผิวเดิม')" class="text-[10px] px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded border">1. หลุมบ่อซ่อมเสร็จ</button>
+            <button type="button" onclick="selectSampleAfterImg('/static/sample_images/repair_asphalt_hotmix.jpg', 'ปูผิวแอสฟัลต์ผสมร้อน Hot-Mix ทับหน้าเต็มแนว และตีเส้นจราจรใหม่')" class="text-[10px] px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded border">2. ลาดยาง Hot-Mix ใหม่</button>
+            <button type="button" onclick="selectSampleAfterImg('/static/sample_images/repair_overlay_smooth.jpg', 'ขัดลอกผิวทางเดิมและปูผิวแอสฟัลต์กันลื่นพิเศษเรียบร้อย')" class="text-[10px] px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded border">3. ขัดผิวซ่อมเสร็จ</button>
+            <button type="button" onclick="selectSampleAfterImg('/static/sample_images/depression_1_repaired.jpg', 'เสริมระดับชั้นทางและปรับแนวระบายน้ำเสมอผิวถนน')" class="text-[10px] px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded border">4. ปรับระดับแอ่งทรุด</button>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <label class="block text-xs font-semibold text-slate-700 mb-1">บันทึกรายละเอียดการซ่อมแซม *</label>
+        <textarea id="submit-repair-notes" rows="2" class="w-full text-xs rounded-xl border border-slate-300 p-2" placeholder="เช่น ดำเนินการปรับพื้นผิวทาง ลงยางมะตอยผสมร้อน บดอัดเรียบเนียน และเปิดการจราจรตามปกติแล้วครับ"></textarea>
+      </div>
+
+      <div class="flex space-x-2 pt-1">
+        <button onclick="closeModal('modal-submit-work')" class="w-1/2 py-2.5 border border-slate-300 text-slate-700 rounded-xl text-xs font-medium">ยกเลิก</button>
+        <button onclick="confirmSubmitWork()" class="w-1/2 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-medium">ส่งตรวจรับงาน</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: AUTHORITY INSPECT COMPLETED WORK -->
+  <div id="modal-inspect" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+    <div class="bg-white rounded-2xl max-w-xl w-full p-4 sm:p-5 shadow-xl border border-slate-200 space-y-3.5 max-h-[92vh] overflow-y-auto my-auto">
+      <div class="flex justify-between items-center border-b pb-2.5">
+        <h3 class="text-sm font-bold text-slate-900">ตรวจรับผลงานการซ่อมแซม</h3>
+        <button onclick="closeModal('modal-inspect')" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <input type="hidden" id="inspect-wo-id">
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div class="border rounded-xl p-2 bg-slate-50 text-center">
+          <span class="text-[10px] font-semibold text-rose-700 block mb-1">ภาพก่อนซ่อม</span>
+          <img id="inspect-before-img" class="w-full h-32 sm:h-36 object-cover rounded-lg border border-slate-200" src="" alt="Before">
+        </div>
+        <div class="border rounded-xl p-2 bg-slate-50 text-center">
+          <span class="text-[10px] font-semibold text-emerald-700 block mb-1">ภาพหลังซ่อมเสร็จ</span>
+          <img id="inspect-after-img" class="w-full h-32 sm:h-36 object-cover rounded-lg border border-slate-200" src="" alt="After">
+        </div>
+      </div>
+
+      <div>
+        <label class="block text-xs font-semibold text-slate-700 mb-1">ความเห็นการตรวจรับ</label>
+        <input type="text" id="inspect-notes" class="w-full text-xs rounded-xl border border-slate-300 p-2" value="ตรวจรับงานเรียบร้อย ผิวทางราบเรียบเสมอกัน คุณภาพงานผ่านเกณฑ์">
+      </div>
+
+      <div class="flex space-x-2 pt-1">
+        <button onclick="confirmInspectWork('revision')" class="w-1/2 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-medium">สั่งแก้ไขงาน</button>
+        <button onclick="confirmInspectWork('pass')" class="w-1/2 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-medium">ตรวจรับผ่าน & ปิดงาน</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: CITIZEN FEEDBACK & RATING (พร้อม Presets สำหรับทดสอบ) -->
+  <div id="modal-feedback" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full p-5 shadow-xl border border-slate-200 space-y-3.5">
+      <div class="flex justify-between items-center border-b pb-2.5">
+        <h3 class="text-sm font-bold text-slate-900">ประเมินความพึงพอใจการซ่อมแซม</h3>
+        <button onclick="closeModal('modal-feedback')" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <input type="hidden" id="fb-case-id">
+      <div>
+        <span class="text-[11px] text-slate-400">เคสแจ้งซ่อม:</span>
+        <strong id="fb-disp-case-id" class="text-xs text-slate-800 block">CASE-2026-XXX</strong>
+      </div>
+
+      <div class="text-center py-2">
+        <label class="block text-xs font-medium text-slate-700 mb-2">ให้คะแนนความพึงพอใจ</label>
+        <div class="flex justify-center space-x-2 text-2xl text-slate-300" id="star-container">
+          <i class="fa-solid fa-star cursor-pointer hover:text-yellow-400" onclick="setRating(1)"></i>
+          <i class="fa-solid fa-star cursor-pointer hover:text-yellow-400" onclick="setRating(2)"></i>
+          <i class="fa-solid fa-star cursor-pointer hover:text-yellow-400" onclick="setRating(3)"></i>
+          <i class="fa-solid fa-star cursor-pointer hover:text-yellow-400" onclick="setRating(4)"></i>
+          <i class="fa-solid fa-star cursor-pointer hover:text-yellow-400" onclick="setRating(5)"></i>
+        </div>
+        <input type="hidden" id="fb-rating-val" value="5">
+      </div>
+
+      <div>
+        <label class="block text-xs font-semibold text-slate-700 mb-1">ข้อเสนอแนะเพิ่มเติม</label>
+        <textarea id="fb-comments" rows="2" class="w-full text-xs rounded-xl border border-slate-300 p-2" placeholder="พิมพ์ความคิดเห็นของคุณ..."></textarea>
+      </div>
+
+      <!-- Presets for fast testing -->
+      <div class="space-y-1">
+        <span class="text-[10px] text-slate-400 block">เลือกตัวอย่างข้อความประเมิน (คลิกเพื่อใส่ข้อความ):</span>
+        <div class="flex flex-col gap-1">
+          <button type="button" onclick="presetFeedback(5, 'ซ่อมรวดเร็วมากครับ ทีมช่างทำงานเรียบร้อย ถนนกลับมาใช้งานได้ปลอดภัย ขอบคุณครับ')" class="text-left text-[11px] p-1.5 bg-slate-50 hover:bg-slate-100 rounded border text-slate-700">
+            ★ 5 ดาว: "ซ่อมรวดเร็วมากครับ ถนนกลับมาใช้งานได้ปลอดภัย"
+          </button>
+          <button type="button" onclick="presetFeedback(4, 'แก้ไขหลุมบ่อได้ราบเรียบดี รถขับผ่านได้ปลอดภัยแล้วครับ อยากให้ช่วยกวาดเศษหินข้างทางอีกนิดจะสมบูรณ์แบบมาก')" class="text-left text-[11px] p-1.5 bg-slate-50 hover:bg-slate-100 rounded border text-slate-700">
+            ★ 4 ดาว: "แก้ไขได้ราบเรียบดี ฝากเก็บกวาดเศษหินอีกนิดจะดีมาก"
+          </button>
+          <button type="button" onclick="presetFeedback(5, 'แจ้งเรื่องผ่านระบบช่วงเช้า บ่ายช่างเข้ามาดู ดึกซ่อมเสร็จ ประทับใจการทำงานของระบบและทีมช่างมากครับ')" class="text-left text-[11px] p-1.5 bg-slate-50 hover:bg-slate-100 rounded border text-slate-700">
+            ★ 5 ดาว: "แจ้งเช้า ดึกซ่อมเสร็จ ประทับใจการทำงานมากครับ"
+          </button>
+        </div>
+      </div>
+
+      <div class="flex space-x-2 pt-1">
+        <button onclick="closeModal('modal-feedback')" class="w-1/2 py-2 border border-slate-300 text-slate-700 rounded-xl text-xs font-medium">ยกเลิก</button>
+        <button onclick="confirmSubmitFeedback()" class="w-1/2 py-2 bg-yellow-500 hover:bg-yellow-600 text-white rounded-xl text-xs font-medium">ส่งแบบประเมิน</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: OTP VERIFICATION (ยืนยันรหัส OTP หลังสมัครสมาชิก) -->
+  <div id="modal-otp-verify" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+    <div class="bg-white rounded-2xl max-w-md w-full p-5 sm:p-6 shadow-2xl border border-slate-200 space-y-4 my-auto">
+      
+      <!-- Header -->
+      <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+        <div class="flex items-center space-x-2.5">
+          <div class="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center text-base font-bold border border-blue-100 shadow-xs">
+            <i class="fa-solid fa-mobile-screen-button"></i>
+          </div>
+          <div>
+            <h3 class="text-sm font-bold text-slate-900">ยืนยันตัวตนด้วยรหัส OTP</h3>
+            <p class="text-[11px] text-slate-500">ขั้นตอนสุดท้ายเพื่อเปิดใช้งานบัญชีประชาชน</p>
+          </div>
+        </div>
+        <button onclick="closeModal('modal-otp-verify')" class="text-slate-400 hover:text-slate-600 p-1">
+          <i class="fa-solid fa-xmark text-base"></i>
+        </button>
+      </div>
+
+      <!-- Info Text -->
+      <div class="text-center pt-1">
+        <p class="text-xs text-slate-600">
+          ระบบได้ส่งรหัส OTP 6 หลัก ไปยังหมายเลข
+        </p>
+        <div class="flex items-center justify-center gap-2 mt-1">
+          <strong class="text-sm font-bold text-slate-900" id="otp-disp-phone">089-xxx-2233</strong>
+          <span class="px-2 py-0.5 rounded-md bg-blue-50 border border-blue-200 text-blue-700 font-mono text-[11px] font-bold" id="otp-disp-ref">Ref: FT88</span>
+        </div>
+      </div>
+
+      <!-- Simulated SMS Notification Box (จำลองข้อความ SMS ให้ตรวจและแตะกรอกอัตโนมัติ) -->
+      <div class="bg-amber-50/90 border border-amber-200 rounded-xl p-3 shadow-xs space-y-2">
+        <div class="flex items-center justify-between text-[11px] font-bold text-amber-800">
+          <span class="flex items-center gap-1.5">
+            <i class="fa-solid fa-comment-sms text-amber-600"></i>
+            ข้อความ SMS แจ้งรหัส (จำลองการทดสอบ)
+          </span>
+          <span class="text-[10px] text-amber-600 font-normal">เพิ่งส่ง</span>
+        </div>
+        <div class="p-2.5 bg-white rounded-lg border border-amber-200/70 text-xs text-slate-700 leading-relaxed">
+          <span>FixTogether: รหัส OTP ของคุณคือ </span>
+          <strong class="text-blue-700 font-mono text-sm tracking-widest px-1.5 py-0.5 bg-blue-50 border border-blue-200 rounded" id="simulated-otp-code">------</strong>
+          <span class="text-[11px] text-slate-500"> (Ref: <span id="simulated-otp-ref" class="font-mono">FT--</span>) ใช้ยืนยันการสมัครสมาชิก</span>
+        </div>
+        <button type="button" onclick="autofillOTP()" class="w-full py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-xs font-semibold transition flex items-center justify-center gap-1.5 shadow-sm active:scale-[0.99]">
+          <i class="fa-solid fa-bolt"></i> แตะเพื่อกรอกรหัส OTP อัตโนมัติ (Autofill)
+        </button>
+      </div>
+
+      <!-- 6 Digits Inputs -->
+      <div class="space-y-1.5 pt-1">
+        <label class="block text-center text-xs font-medium text-slate-700">กรอกรหัสยืนยัน 6 หลัก</label>
+        <div class="flex justify-center gap-2 sm:gap-2.5" id="otp-inputs-row">
+          <input type="text" maxlength="1" inputmode="numeric" pattern="[0-9]*" class="otp-digit-input w-10 h-12 sm:w-11 sm:h-13 text-center text-xl font-bold rounded-xl border border-slate-300 focus:border-blue-600 focus:ring-2 focus:ring-blue-100 outline-none transition bg-white text-slate-900 shadow-xs" data-idx="0">
+          <input type="text" maxlength="1" inputmode="numeric" pattern="[0-9]*" class="otp-digit-input w-10 h-12 sm:w-11 sm:h-13 text-center text-xl font-bold rounded-xl border border-slate-300 focus:border-blue-600 focus:ring-2 focus:ring-blue-100 outline-none transition bg-white text-slate-900 shadow-xs" data-idx="1">
+          <input type="text" maxlength="1" inputmode="numeric" pattern="[0-9]*" class="otp-digit-input w-10 h-12 sm:w-11 sm:h-13 text-center text-xl font-bold rounded-xl border border-slate-300 focus:border-blue-600 focus:ring-2 focus:ring-blue-100 outline-none transition bg-white text-slate-900 shadow-xs" data-idx="2">
+          <input type="text" maxlength="1" inputmode="numeric" pattern="[0-9]*" class="otp-digit-input w-10 h-12 sm:w-11 sm:h-13 text-center text-xl font-bold rounded-xl border border-slate-300 focus:border-blue-600 focus:ring-2 focus:ring-blue-100 outline-none transition bg-white text-slate-900 shadow-xs" data-idx="3">
+          <input type="text" maxlength="1" inputmode="numeric" pattern="[0-9]*" class="otp-digit-input w-10 h-12 sm:w-11 sm:h-13 text-center text-xl font-bold rounded-xl border border-slate-300 focus:border-blue-600 focus:ring-2 focus:ring-blue-100 outline-none transition bg-white text-slate-900 shadow-xs" data-idx="4">
+          <input type="text" maxlength="1" inputmode="numeric" pattern="[0-9]*" class="otp-digit-input w-10 h-12 sm:w-11 sm:h-13 text-center text-xl font-bold rounded-xl border border-slate-300 focus:border-blue-600 focus:ring-2 focus:ring-blue-100 outline-none transition bg-white text-slate-900 shadow-xs" data-idx="5">
+        </div>
+        <div id="otp-error-msg" class="text-rose-600 text-xs text-center font-medium hidden"></div>
+      </div>
+
+      <!-- Resend Timer -->
+      <div class="flex items-center justify-between text-xs pt-1 px-1">
+        <span class="text-slate-500" id="otp-timer-label">ขอรหัสใหม่ได้ใน <strong id="otp-countdown-num" class="text-slate-800 font-mono">60</strong> วินาที</span>
+        <button type="button" id="btn-resend-otp" onclick="resendCitizenOTP()" class="text-blue-600 hover:text-blue-800 font-semibold disabled:text-slate-400 disabled:cursor-not-allowed transition" disabled>
+          <i class="fa-solid fa-rotate-right mr-1"></i> ส่งรหัสใหม่
+        </button>
+      </div>
+
+      <!-- Actions -->
+      <div class="flex space-x-2 pt-2 border-t border-slate-100">
+        <button type="button" onclick="closeModal('modal-otp-verify')" class="w-1/3 py-2.5 border border-slate-300 hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-medium transition">
+          ยกเลิก
+        </button>
+        <button type="button" id="btn-confirm-otp" onclick="verifyCitizenOTP()" class="w-2/3 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold shadow-sm transition flex items-center justify-center space-x-2">
+          <i class="fa-solid fa-circle-check"></i>
+          <span>ยืนยันรหัส OTP</span>
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- MODAL: SA DIAGRAMS VIEWER -->
+  <div id="modal-diagrams" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-3 sm:p-4">
+    <div class="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] flex flex-col p-5 shadow-xl border border-slate-200">
+      <div class="flex justify-between items-center border-b pb-3">
+        <div>
+          <h3 class="text-sm sm:text-base font-bold text-slate-900">แผนภาพสถาปัตยกรรมระบบ (System Analysis & Design)</h3>
+          <p class="text-xs text-slate-500">เอกสารการวิเคราะห์และออกแบบระบบ FixTogether ตามมาตรฐาน SA</p>
+        </div>
+        <button onclick="closeModal('modal-diagrams')" class="text-slate-400 hover:text-slate-600 text-base"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <div class="flex flex-wrap gap-1.5 border-b py-2.5 text-xs">
+        <button onclick="showDiagramTab('state')" id="diag-btn-state" class="px-2.5 py-1 rounded-lg bg-blue-600 text-white font-medium">State Diagram (ครบทุกสถานะ)</button>
+        <button onclick="showDiagramTab('class')" id="diag-btn-class" class="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200">Class Diagram</button>
+        <button onclick="showDiagramTab('usecase')" id="diag-btn-usecase" class="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200">Use Cases</button>
+        <button onclick="showDiagramTab('dfd')" id="diag-btn-dfd" class="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200">DFD Levels</button>
+        <button onclick="showDiagramTab('activity')" id="diag-btn-activity" class="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200">Activity Diagram</button>
+        <button onclick="showDiagramTab('sequence')" id="diag-btn-sequence" class="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200">Sequence Diagram</button>
+      </div>
+
+      <div class="overflow-y-auto flex-grow p-4 space-y-3 text-xs text-slate-700" id="diagram-content-box">
+      </div>
+    </div>
+  </div>
+
+  <!-- JAVASCRIPT APPLICATION LOGIC -->
+  <script>
+    // State
+    let currentUser = null;
+    let currentRole = null;
+
+    let reportMap = null;
+    let reportMarker = null;
+    let authorityMap = null;
+    let authorityMarkers = [];
+
+    let currentLat = 13.8034;
+    let currentLng = 100.5538;
+    let selectedSampleImage = null;
+    let selectedSampleAfterImage = null;
+    let severityChartInstance = null;
+    let isDemoBarExpanded = true;
+    let cachedCasesMap = {};
+
+    document.addEventListener("DOMContentLoaded", () => {
+      goToHome();
+      loadTechniciansDropdown();
+      setRating(5);
+      initGlobeWireframe();
+      // Auto-collapse demo switcher on mobile screens to keep screen clean
+      if (window.innerWidth < 640) {
+        isDemoBarExpanded = false;
+        const container = document.getElementById('demo-buttons-container');
+        const icon = document.getElementById('demo-toggle-icon');
+        if (container) container.classList.add('hidden');
+        if (icon) icon.className = 'fa-solid fa-chevron-up';
+      }
+    });
+
+    // ----------------------------------------------------
+    // 3D INTERACTIVE GLOBE WIREFRAME (D3.js + TopoJSON)
+    // ----------------------------------------------------
+    let globeWorldData = null;
+    let globeRotation = [100, -15]; // Start facing Thailand/Southeast Asia
+    let globeIsDragging = false;
+    let globeLastMouse = [0, 0];
+    let globeAnimId = null;
+
+    async function initGlobeWireframe() {
+      const svgEl = document.getElementById('globe-svg');
+      if (!svgEl) return;
+
+      const size = Math.min(svgEl.parentElement ? svgEl.parentElement.clientWidth : 280, 280);
+      const width = size;
+      const height = size;
+      svgEl.setAttribute('width', width);
+      svgEl.setAttribute('height', height);
+      svgEl.setAttribute('viewBox', `0 0 ${width} ${height}`);
+
+      try {
+        if (!globeWorldData && typeof fetch !== 'undefined') {
+          const resp = await fetch("https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json");
+          const world = await resp.json();
+          if (typeof topojson !== 'undefined' && topojson.feature) {
+            globeWorldData = topojson.feature(world, world.objects.countries).features;
+          }
+        }
+      } catch (err) {
+        console.warn("Could not load world atlas data:", err);
+      }
+
+      function renderGlobe() {
+        if (typeof d3 === 'undefined') return;
+        const svg = d3.select(svgEl);
+        svg.selectAll("*").remove();
+
+        const radius = Math.min(width, height) / 2 * 0.88;
+        const projection = d3.geoOrthographic()
+          .scale(radius)
+          .translate([width / 2, height / 2])
+          .rotate([globeRotation[0], globeRotation[1]])
+          .precision(0.1);
+
+        const path = d3.geoPath().projection(projection);
+
+        // Globe sphere background (deep slate/blue)
+        svg.append("circle")
+          .attr("cx", width / 2)
+          .attr("cy", height / 2)
+          .attr("r", radius)
+          .attr("fill", "#090d16")
+          .attr("opacity", 0.95);
+
+        // Graticule lines (latitude and longitude)
+        try {
+          const graticule = d3.geoGraticule();
+          const gPath = path(graticule());
+          if (gPath) {
+            svg.append("path")
+              .datum(graticule())
+              .attr("d", gPath)
+              .attr("fill", "none")
+              .attr("stroke", "#38bdf8")
+              .attr("stroke-width", 0.6)
+              .attr("opacity", 0.2);
+          }
+        } catch(e) {}
+
+        // Country outlines
+        if (globeWorldData) {
+          svg.selectAll(".country")
+            .data(globeWorldData)
+            .enter()
+            .append("path")
+            .attr("class", "country")
+            .attr("d", d => {
+              try { return path(d) || ""; } catch(e) { return ""; }
+            })
+            .attr("fill", "#1e293b")
+            .attr("stroke", "#60a5fa")
+            .attr("stroke-width", 0.75)
+            .attr("opacity", 0.85);
+        }
+
+        // Bangkok, Thailand Coordinates [100.5018, 13.7563]
+        try {
+          const bkkCoord = projection([100.5018, 13.7563]);
+          const center = projection.invert([width / 2, height / 2]);
+          if (bkkCoord && d3.geoDistance([100.5018, 13.7563], center) < Math.PI / 2) {
+            // Pulse outer circle
+            svg.append("circle")
+              .attr("cx", bkkCoord[0])
+              .attr("cy", bkkCoord[1])
+              .attr("r", 7)
+              .attr("fill", "none")
+              .attr("stroke", "#f43f5e")
+              .attr("stroke-width", 1.5)
+              .attr("opacity", 0.8);
+
+            // Center pin
+            svg.append("circle")
+              .attr("cx", bkkCoord[0])
+              .attr("cy", bkkCoord[1])
+              .attr("r", 3.5)
+              .attr("fill", "#f43f5e")
+              .attr("stroke", "#ffffff")
+              .attr("stroke-width", 1.5);
+
+            // Label
+            svg.append("text")
+              .attr("x", bkkCoord[0] + 8)
+              .attr("y", bkkCoord[1] + 3)
+              .attr("fill", "#fb7185")
+              .attr("font-size", "10px")
+              .attr("font-weight", "600")
+              .text("Thailand (Center)");
+          }
+        } catch(e) {}
+
+        // Outer sphere glow ring
+        try {
+          const sphereOutline = path({ type: "Sphere" });
+          if (sphereOutline) {
+            svg.append("path")
+              .datum({ type: "Sphere" })
+              .attr("d", sphereOutline)
+              .attr("fill", "none")
+              .attr("stroke", "#38bdf8")
+              .attr("stroke-width", 1.2)
+              .attr("opacity", 0.7);
+          }
+        } catch(e) {}
+      }
+
+      function animate() {
+        if (!globeIsDragging) {
+          globeRotation[0] = (globeRotation[0] + 0.35) % 360;
+          renderGlobe();
+        }
+        globeAnimId = requestAnimationFrame(animate);
+      }
+
+      if (globeAnimId) cancelAnimationFrame(globeAnimId);
+      animate();
+
+      // Drag controls
+      function startDrag(x, y) {
+        globeIsDragging = true;
+        globeLastMouse = [x, y];
+      }
+      function moveDrag(x, y) {
+        if (!globeIsDragging) return;
+        const dx = x - globeLastMouse[0];
+        const dy = y - globeLastMouse[1];
+        globeRotation[0] = (globeRotation[0] + dx * 0.4) % 360;
+        globeRotation[1] = Math.max(-80, Math.min(80, globeRotation[1] - dy * 0.4));
+        globeLastMouse = [x, y];
+        renderGlobe();
+      }
+      function endDrag() {
+        globeIsDragging = false;
+      }
+
+      svgEl.onmousedown = (e) => startDrag(e.clientX, e.clientY);
+      window.addEventListener('mousemove', (e) => moveDrag(e.clientX, e.clientY));
+      window.addEventListener('mouseup', endDrag);
+
+      svgEl.addEventListener('touchstart', (e) => {
+        if (e.touches.length > 0) startDrag(e.touches[0].clientX, e.touches[0].clientY);
+      }, { passive: true });
+      window.addEventListener('touchmove', (e) => {
+        if (e.touches.length > 0) moveDrag(e.touches[0].clientX, e.touches[0].clientY);
+      }, { passive: true });
+      window.addEventListener('touchend', endDrag);
+    }
+
+    // ----------------------------------------------------
+    // LANDING & AUTH LOGIC
+    // ----------------------------------------------------
+    function switchLandingTab(tab) {
+      const isCitizen = tab === 'citizen';
+      document.getElementById('auth-panel-citizen').classList.toggle('hidden', !isCitizen);
+      document.getElementById('auth-panel-staff').classList.toggle('hidden', isCitizen);
+
+      const btnCit = document.getElementById('btn-tab-citizen');
+      const btnStf = document.getElementById('btn-tab-staff');
+
+      if (isCitizen) {
+        btnCit.className = 'py-2.5 px-3 rounded-xl text-xs font-semibold transition flex items-center justify-center space-x-2 bg-white text-slate-900 shadow-sm border border-slate-200/60';
+        btnStf.className = 'py-2.5 px-3 rounded-xl text-xs font-semibold transition flex items-center justify-center space-x-2 text-slate-600 hover:text-slate-900';
+      } else {
+        btnStf.className = 'py-2.5 px-3 rounded-xl text-xs font-semibold transition flex items-center justify-center space-x-2 bg-white text-slate-900 shadow-sm border border-slate-200/60';
+        btnCit.className = 'py-2.5 px-3 rounded-xl text-xs font-semibold transition flex items-center justify-center space-x-2 text-slate-600 hover:text-slate-900';
+      }
+    }
+
+    function setCitizenAuthMode(mode) {
+      const isLogin = mode === 'login';
+      document.getElementById('form-citizen-login').classList.toggle('hidden', !isLogin);
+      document.getElementById('form-citizen-register').classList.toggle('hidden', isLogin);
+
+      const btnLogin = document.getElementById('btn-citizen-mode-login');
+      const btnReg = document.getElementById('btn-citizen-mode-register');
+
+      if (isLogin) {
+        btnLogin.className = 'font-semibold text-blue-600 border-b-2 border-blue-600 pb-2';
+        btnReg.className = 'text-slate-500 hover:text-slate-800 pb-2';
+      } else {
+        btnReg.className = 'font-semibold text-slate-900 border-b-2 border-slate-900 pb-2';
+        btnLogin.className = 'text-slate-500 hover:text-slate-800 pb-2';
+      }
+    }
+
+    async function handleCitizenLogin() {
+      const u = document.getElementById('citizen-login-user').value.trim();
+      const p = document.getElementById('citizen-login-pass').value.trim();
+      if (!u || !p) { alert("กรุณากรอกชื่อผู้ใช้งาน/เลขบัตรประชาชน และรหัสผ่าน"); return; }
+      await performLogin(u, p);
+    }
+
+    async function handleStaffLogin() {
+      const u = document.getElementById('staff-login-user').value.trim();
+      const p = document.getElementById('staff-login-pass').value.trim();
+      if (!u || !p) { alert("กรุณากรอกรหัสเจ้าหน้าที่และรหัสผ่าน"); return; }
+      await performLogin(u, p);
+    }
+
+    async function performLogin(username, password) {
+      try {
+        const res = await fetch("/api/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username: username, password: password })
+        });
+        const data = await res.json();
+        if (data.status === "success" && data.user) {
+          applyUserSession(data.user);
+        } else {
+          alert(data.detail || "เข้าสู่ระบบไม่สำเร็จ");
+        }
+      } catch (err) {
+        alert("ไม่สามารถเชื่อมต่อระบบ: " + err.message);
+      }
+    }
+
+    let currentOtpSession = null;
+    let currentRegistrationData = null;
+    let otpTimerInterval = null;
+
+    async function initiateCitizenOTPRegistration() {
+      const citizen_id = document.getElementById('reg-citizen-id').value.trim();
+      const full_name = document.getElementById('reg-fullname').value.trim();
+      const username = document.getElementById('reg-username').value.trim();
+      const phone = document.getElementById('reg-phone').value.trim();
+      const password = document.getElementById('reg-password').value.trim();
+
+      if (!citizen_id || citizen_id.length !== 13 || !/^\d+$/.test(citizen_id)) {
+        alert("กรุณากรอกรหัสประจำตัวประชาชน 13 หลัก (ตัวเลขล้วน) ให้ถูกต้อง");
+        return;
+      }
+      if (!full_name || !username || !password || !phone) {
+        alert("กรุณากรอกข้อมูลการสมัครสมาชิกให้ครบถ้วนทุกช่อง");
+        return;
+      }
+
+      const btn = document.getElementById('btn-start-register-otp');
+      const oldHtml = btn ? btn.innerHTML : '';
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i> กำลังส่งรหัส OTP...';
+      }
+
+      try {
+        const payload = {
+          citizen_id: citizen_id,
+          full_name: full_name,
+          username: username,
+          phone: phone,
+          password: password
+        };
+        const res = await fetch("/api/auth/register-otp/request", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (data.status === "success") {
+          currentRegistrationData = payload;
+          currentOtpSession = data;
+
+          // Populate OTP Modal UI
+          document.getElementById('otp-disp-phone').innerText = data.masked_phone;
+          document.getElementById('otp-disp-ref').innerText = 'Ref: ' + data.ref_code;
+          document.getElementById('simulated-otp-code').innerText = data.otp;
+          document.getElementById('simulated-otp-ref').innerText = data.ref_code;
+          
+          // Clear inputs
+          document.querySelectorAll('.otp-digit-input').forEach(inp => {
+            inp.value = '';
+            inp.classList.remove('border-rose-500');
+          });
+          document.getElementById('otp-error-msg').classList.add('hidden');
+
+          openModal('modal-otp-verify');
+          startOtpTimer(60);
+          setupOTPInputs();
+
+          setTimeout(() => {
+            const first = document.querySelector('.otp-digit-input[data-idx="0"]');
+            if (first) first.focus();
+          }, 200);
+        } else {
+          alert(data.detail || "ไม่สามารถขอรหัส OTP ได้");
+        }
+      } catch (err) {
+        alert("เกิดข้อผิดพลาดในการเชื่อมต่อ: " + err.message);
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = oldHtml;
+        }
+      }
+    }
+
+    function autofillOTP() {
+      if (!currentOtpSession || !currentOtpSession.otp) return;
+      const digits = currentOtpSession.otp.split('');
+      document.querySelectorAll('.otp-digit-input').forEach((inp, idx) => {
+        inp.value = digits[idx] || '';
+      });
+      document.getElementById('otp-error-msg').classList.add('hidden');
+      const btn = document.getElementById('btn-confirm-otp');
+      if (btn) btn.focus();
+    }
+
+    function setupOTPInputs() {
+      const inputs = document.querySelectorAll('.otp-digit-input');
+      inputs.forEach((input, index) => {
+        input.oninput = (e) => {
+          e.target.value = e.target.value.replace(/[^0-9]/g, '');
+          if (e.target.value && index < inputs.length - 1) {
+            inputs[index + 1].focus();
+          }
+        };
+        input.onkeydown = (e) => {
+          if (e.key === 'Backspace' && !input.value && index > 0) {
+            inputs[index - 1].value = '';
+            inputs[index - 1].focus();
+          } else if (e.key === 'ArrowLeft' && index > 0) {
+            inputs[index - 1].focus();
+          } else if (e.key === 'ArrowRight' && index < inputs.length - 1) {
+            inputs[index + 1].focus();
+          } else if (e.key === 'Enter') {
+            verifyCitizenOTP();
+          }
+        };
+        input.onpaste = (e) => {
+          e.preventDefault();
+          const paste = (e.clipboardData || window.clipboardData).getData('text').replace(/[^0-9]/g, '');
+          if (paste.length >= 6) {
+            inputs.forEach((inp, i) => { inp.value = paste[i] || ''; });
+            inputs[inputs.length - 1].focus();
+          }
+        };
+      });
+    }
+
+    function startOtpTimer(seconds) {
+      if (otpTimerInterval) clearInterval(otpTimerInterval);
+      let remaining = seconds;
+      const numEl = document.getElementById('otp-countdown-num');
+      const labelEl = document.getElementById('otp-timer-label');
+      const resendBtn = document.getElementById('btn-resend-otp');
+      
+      resendBtn.disabled = true;
+      numEl.innerText = remaining;
+      labelEl.innerHTML = `ขอรหัสใหม่ได้ใน <strong id="otp-countdown-num" class="text-slate-800 font-mono">${remaining}</strong> วินาที`;
+
+      otpTimerInterval = setInterval(() => {
+        remaining -= 1;
+        const curNum = document.getElementById('otp-countdown-num');
+        if (curNum) curNum.innerText = remaining;
+        if (remaining <= 0) {
+          clearInterval(otpTimerInterval);
+          resendBtn.disabled = false;
+          labelEl.innerHTML = `<span class="text-amber-600 font-medium">สามารถกดขอรหัสใหม่ได้แล้ว</span>`;
+        }
+      }, 1000);
+    }
+
+    async function resendCitizenOTP() {
+      if (!currentRegistrationData) return;
+      const resendBtn = document.getElementById('btn-resend-otp');
+      resendBtn.disabled = true;
+      try {
+        const res = await fetch("/api/auth/register-otp/request", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(currentRegistrationData)
+        });
+        const data = await res.json();
+        if (data.status === "success") {
+          currentOtpSession = data;
+          document.getElementById('otp-disp-ref').innerText = 'Ref: ' + data.ref_code;
+          document.getElementById('simulated-otp-code').innerText = data.otp;
+          document.getElementById('simulated-otp-ref').innerText = data.ref_code;
+          document.querySelectorAll('.otp-digit-input').forEach(i => { i.value = ''; });
+          document.getElementById('otp-error-msg').classList.add('hidden');
+          startOtpTimer(60);
+          alert("ส่งรหัส OTP ชุดใหม่ไปยังหมายเลขโทรศัพท์ของคุณแล้ว!");
+        } else {
+          alert(data.detail || "ไม่สามารถส่งรหัสใหม่ได้");
+          resendBtn.disabled = false;
+        }
+      } catch (err) {
+        alert("เกิดข้อผิดพลาด: " + err.message);
+        resendBtn.disabled = false;
+      }
+    }
+
+    async function verifyCitizenOTP() {
+      const inputs = document.querySelectorAll('.otp-digit-input');
+      const otpCode = Array.from(inputs).map(i => i.value.trim()).join('');
+      const errEl = document.getElementById('otp-error-msg');
+
+      if (otpCode.length !== 6) {
+        errEl.innerText = "กรุณากรอกรหัส OTP ให้ครบ 6 หลัก";
+        errEl.classList.remove('hidden');
+        inputs.forEach(i => i.classList.add('border-rose-500'));
+        return;
+      }
+
+      const confirmBtn = document.getElementById('btn-confirm-otp');
+      const oldBtnHtml = confirmBtn ? confirmBtn.innerHTML : '';
+      if (confirmBtn) {
+        confirmBtn.disabled = true;
+        confirmBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i> กำลังตรวจสอบ...';
+      }
+
+      try {
+        const res = await fetch("/api/auth/register-otp/verify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ref_code: currentOtpSession.ref_code,
+            otp: otpCode
+          })
+        });
+        const data = await res.json();
+        if (data.status === "success" && data.user) {
+          if (otpTimerInterval) clearInterval(otpTimerInterval);
+          closeModal('modal-otp-verify');
+          alert(`🎉 ยืนยันรหัส OTP และลงทะเบียนสำเร็จ!\nยินดีต้อนรับคุณ ${data.user.full_name}`);
+          applyUserSession(data.user);
+        } else {
+          errEl.innerText = data.detail || "รหัส OTP ไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง";
+          errEl.classList.remove('hidden');
+          inputs.forEach(i => i.classList.add('border-rose-500'));
+        }
+      } catch (err) {
+        errEl.innerText = "เกิดข้อผิดพลาด: " + err.message;
+        errEl.classList.remove('hidden');
+      } finally {
+        if (confirmBtn) {
+          confirmBtn.disabled = false;
+          confirmBtn.innerHTML = oldBtnHtml;
+        }
+      }
+    }
+
+    function quickLoginDemo(username) {
+      if (username === 'somchai') {
+        applyUserSession({
+          user_id: 'U001',
+          full_name: 'นายสมชาย รักสะอาด',
+          role: 'citizen',
+          department: null,
+          team_name: null
+        });
+      } else if (username === 'admin_bma') {
+        applyUserSession({
+          user_id: 'U002',
+          full_name: 'น.ส.วิภาดา โยธาธิการ',
+          role: 'authority',
+          department: 'สำนักการโยธาและผังเมือง',
+          team_name: null
+        });
+      } else if (username === 'mechanic_jack') {
+        applyUserSession({
+          user_id: 'U003',
+          full_name: 'นายเอกชัย มุ่งมั่น',
+          role: 'technician',
+          department: null,
+          team_name: 'ทีมช่างซ่อมบำรุง 01'
+        });
+      }
+    }
+
+    function applyUserSession(user) {
+      currentUser = user;
+      currentRole = user.role;
+
+      document.getElementById('landing-auth-container').classList.add('hidden');
+      document.getElementById('app-workspace-container').classList.remove('hidden');
+
+      document.getElementById('nav-user-section').classList.remove('hidden');
+      const avatar = document.getElementById('user-avatar');
+      const nameEl = document.getElementById('user-display-name');
+      const roleEl = document.getElementById('user-display-role');
+
+      nameEl.innerText = user.full_name;
+      if (user.role === 'citizen') {
+        avatar.innerText = 'สช';
+        avatar.className = 'w-8 h-8 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-xs border border-blue-200';
+        roleEl.innerText = 'ประชาชนทั่วไป';
+      } else if (user.role === 'authority') {
+        avatar.innerText = 'วย';
+        avatar.className = 'w-8 h-8 rounded-full bg-slate-900 text-white flex items-center justify-center font-bold text-xs border border-slate-700';
+        roleEl.innerText = user.department || 'หน่วยงานผู้ดูแลพื้นที่';
+      } else if (user.role === 'technician') {
+        avatar.innerText = 'อม';
+        avatar.className = 'w-8 h-8 rounded-full bg-amber-100 text-amber-800 flex items-center justify-center font-bold text-xs border border-amber-200';
+        roleEl.innerText = user.team_name || 'เจ้าหน้าที่ซ่อมบำรุง';
+      }
+
+      activateRoleView(user.role);
+    }
+
+    function activateRoleView(role) {
+      document.getElementById('view-citizen').classList.toggle('hidden', role !== 'citizen');
+      document.getElementById('view-authority').classList.toggle('hidden', role !== 'authority');
+      document.getElementById('view-technician').classList.toggle('hidden', role !== 'technician');
+
+      if (role === 'citizen') {
+        setCitizenTab('report');
+        if (!reportMap) {
+          setTimeout(initReportMap, 150);
+        } else {
+          setTimeout(() => reportMap.invalidateSize(), 200);
+        }
+      } else if (role === 'authority') {
+        loadAuthorityCases();
+        loadDashboardStats();
+        setTimeout(() => { if (authorityMap) authorityMap.invalidateSize(); }, 200);
+      } else if (role === 'technician') {
+        loadTechnicianOrders();
+      }
+    }
+
+    function logout() {
+      currentUser = null;
+      currentRole = null;
+      goToHome();
+    }
+
+    function goToHome() {
+      document.getElementById('app-workspace-container').classList.add('hidden');
+      document.getElementById('view-citizen').classList.add('hidden');
+      document.getElementById('view-authority').classList.add('hidden');
+      document.getElementById('view-technician').classList.add('hidden');
+      document.getElementById('nav-user-section').classList.add('hidden');
+      document.getElementById('landing-auth-container').classList.remove('hidden');
+    }
+
+    function toggleDemoBar() {
+      isDemoBarExpanded = !isDemoBarExpanded;
+      document.getElementById('demo-buttons-container').classList.toggle('hidden', !isDemoBarExpanded);
+      document.getElementById('demo-toggle-icon').className = isDemoBarExpanded ? 'fa-solid fa-chevron-down' : 'fa-solid fa-chevron-up';
+    }
+
+    // ----------------------------------------------------
+    // CASE DETAILS MODAL (ดูรายละเอียดแต่ละเคส)
+    // ----------------------------------------------------
+    async function viewCaseDetails(caseId) {
+      try {
+        const res = await fetch(`/api/cases/${caseId}`);
+        const data = await res.json();
+        if (!data || data.detail) {
+          alert("ไม่พบข้อมูลเคส");
+          return;
+        }
+
+        // Fill Data
+        document.getElementById('dt-case-id').innerText = data.case_id;
+        document.getElementById('dt-status-badge').innerHTML = getStatusBadge(data.status);
+        document.getElementById('dt-location').innerText = data.location_address;
+        document.getElementById('dt-coords').innerText = `${Number(data.latitude).toFixed(4)}, ${Number(data.longitude).toFixed(4)}`;
+        document.getElementById('dt-reporter').innerText = data.reporter_name;
+        document.getElementById('dt-created-at').innerText = data.created_at;
+        document.getElementById('dt-description').innerText = data.description;
+        document.getElementById('dt-before-img').src = data.image_url;
+
+        // After image
+        const afterBox = document.getElementById('dt-after-box');
+        const afterImg = document.getElementById('dt-after-img');
+        const noAfterText = document.getElementById('dt-no-after-img');
+        if (data.work_order && data.work_order.after_image_url) {
+          afterImg.src = data.work_order.after_image_url;
+          afterImg.classList.remove('hidden');
+          noAfterText.classList.add('hidden');
+        } else {
+          afterImg.classList.add('hidden');
+          noAfterText.classList.remove('hidden');
+        }
+
+        // AI Report
+        if (data.ai_report) {
+          document.getElementById('dt-ai-box').classList.remove('hidden');
+          document.getElementById('dt-ai-model').innerText = data.ai_report.model_version;
+          document.getElementById('dt-ai-type').innerText = data.ai_report.damage_type;
+          document.getElementById('dt-ai-sev').innerText = data.ai_report.severity_level;
+          document.getElementById('dt-ai-budget').innerText = `฿${Number(data.ai_report.estimated_budget).toLocaleString()}`;
+          document.getElementById('dt-ai-conf').innerText = `${data.ai_report.confidence_score}%`;
+          document.getElementById('dt-ai-recom').innerText = data.ai_report.recommendation || '-';
+        } else {
+          document.getElementById('dt-ai-box').classList.add('hidden');
+        }
+
+        // Work Order
+        const woBox = document.getElementById('dt-wo-box');
+        if (data.work_order) {
+          woBox.classList.remove('hidden');
+          document.getElementById('dt-wo-id').innerText = data.work_order.work_order_id;
+          document.getElementById('dt-wo-tech').innerText = data.work_order.technician_name;
+          document.getElementById('dt-wo-team').innerText = data.work_order.team_name || '-';
+          document.getElementById('dt-wo-budget').innerText = `฿${Number(data.work_order.approved_budget).toLocaleString()}`;
+          if (data.work_order.repair_notes) {
+            document.getElementById('dt-wo-notes-box').classList.remove('hidden');
+            document.getElementById('dt-wo-notes').innerText = data.work_order.repair_notes;
+          } else {
+            document.getElementById('dt-wo-notes-box').classList.add('hidden');
+          }
+
+          if (data.work_order.inspection_notes) {
+            document.getElementById('dt-wo-inspect-box').classList.remove('hidden');
+            document.getElementById('dt-wo-inspect').innerText = data.work_order.inspection_notes;
+          } else {
+            document.getElementById('dt-wo-inspect-box').classList.add('hidden');
+          }
+        } else {
+          woBox.classList.add('hidden');
+        }
+
+        // Feedback
+        const fbBox = document.getElementById('dt-fb-box');
+        if (data.feedback) {
+          fbBox.classList.remove('hidden');
+          document.getElementById('dt-fb-title').innerText = "ผลการประเมินความพึงพอใจของประชาชน";
+          document.getElementById('dt-fb-stars').innerText = '★'.repeat(data.feedback.rating) + '☆'.repeat(5 - data.feedback.rating);
+          document.getElementById('dt-fb-comments').innerText = `"${data.feedback.comments || 'ไม่มีความคิดเห็นเพิ่มเติม'}"`;
+          document.getElementById('dt-fb-time').innerText = `ประเมินเมื่อ: ${data.feedback.submitted_at}`;
+        } else if (data.status === 'ปิดงานซ่อมบำรุง') {
+          fbBox.classList.remove('hidden');
+          document.getElementById('dt-fb-title').innerText = "การประเมินความพึงพอใจของประชาชน";
+          document.getElementById('dt-fb-stars').innerHTML = '<span class="text-xs bg-amber-100 text-amber-800 px-2.5 py-0.5 rounded-full font-semibold border border-amber-300">รอการประเมิน</span>';
+          document.getElementById('dt-fb-comments').innerText = "งานซ่อมแซมและตรวจรับเสร็จสมบูรณ์แล้ว อยู่ระหว่างรอประชาชนผู้แจ้งเข้ามาให้คะแนนความพึงพอใจ";
+          document.getElementById('dt-fb-time').innerText = (currentRole === 'citizen') 
+            ? "💡 ท่านสามารถกดปุ่ม \"ประเมินความพึงพอใจ\" ด้านล่างเพื่อส่งผลการประเมินได้ทันที" 
+            : "อยู่ระหว่างรอประชาชนประเมินผลการบริการ";
+        } else {
+          fbBox.classList.add('hidden');
+        }
+
+        // Reject
+        const rjBox = document.getElementById('dt-reject-box');
+        if (data.status === 'ปฏิเสธเคส' && data.reject_reason) {
+          rjBox.classList.remove('hidden');
+          document.getElementById('dt-reject-reason').innerText = data.reject_reason;
+        } else {
+          rjBox.classList.add('hidden');
+        }
+
+        // Action Buttons in Details Modal (Role-specific)
+        const actionsBox = document.getElementById('dt-actions');
+        actionsBox.innerHTML = '';
+        if (currentRole === 'authority') {
+          if (data.status === 'รอตรวจสอบ') {
+            actionsBox.innerHTML = `
+              <button onclick="closeModal('modal-case-detail'); openApproveModal('${data.case_id}', ${data.ai_report ? data.ai_report.estimated_budget : 15000})" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-medium">
+                อนุมัติเปิดงาน
+              </button>
+              <button onclick="closeModal('modal-case-detail'); openRejectModal('${data.case_id}')" class="px-3 py-1.5 bg-rose-100 hover:bg-rose-200 text-rose-700 rounded-xl text-xs font-medium">
+                ปฏิเสธเคส
+              </button>
+            `;
+          } else if (data.status === 'รอตรวจรับงาน' && data.work_order) {
+            actionsBox.innerHTML = `
+              <button onclick="closeModal('modal-case-detail'); openInspectModal('${data.work_order.work_order_id}', '${data.image_url}', '${data.work_order.after_image_url}')" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-medium">
+                ตรวจรับงานซ่อม
+              </button>
+            `;
+          }
+        } else if (currentRole === 'citizen') {
+          if (data.status === 'รอตรวจสอบ') {
+            actionsBox.innerHTML = `
+              <button onclick="cancelCitizenCase('${data.case_id}')" class="px-3 py-1.5 bg-slate-100 hover:bg-rose-50 hover:text-rose-700 text-slate-700 rounded-xl text-xs font-medium border border-slate-300">
+                <i class="fa-solid fa-xmark mr-1 text-rose-500"></i> ยกเลิกคำขอแจ้งเคสนี้
+              </button>
+            `;
+          } else if (data.status === 'ปิดงานซ่อมบำรุง' && !data.feedback) {
+            actionsBox.innerHTML = `
+              <button onclick="closeModal('modal-case-detail'); openFeedbackModal('${data.case_id}')" class="px-3 py-1.5 bg-yellow-500 hover:bg-yellow-600 text-white rounded-xl text-xs font-medium">
+                <i class="fa-solid fa-star mr-1"></i> ประเมินความพึงพอใจ
+              </button>
+            `;
+          }
+        } else if (currentRole === 'technician' && data.work_order) {
+          if (data.work_order.status === 'มอบหมายแล้ว') {
+            actionsBox.innerHTML = `
+              <button onclick="closeModal('modal-case-detail'); startWork('${data.work_order.work_order_id}')" class="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-medium">
+                <i class="fa-solid fa-play mr-1"></i> เริ่มลงพื้นที่ปฏิบัติงาน
+              </button>
+            `;
+          } else if (data.work_order.status === 'กำลังดำเนินการซ่อม' || data.work_order.status === 'สั่งแก้ไขงาน') {
+            actionsBox.innerHTML = `
+              <button onclick="closeModal('modal-case-detail'); openSubmitWorkModal('${data.work_order.work_order_id}')" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-medium">
+                <i class="fa-solid fa-upload mr-1"></i> ส่งผลงานซ่อมเสร็จ
+              </button>
+            `;
+          }
+        }
+
+        openModal('modal-case-detail');
+
+      } catch (err) {
+        alert("ไม่สามารถดึงข้อมูลรายละเอียดเคส: " + err.message);
+      }
+    }
+
+    async function cancelCitizenCase(caseId) {
+      if (!confirm(`คุณต้องการยกเลิกการแจ้งเคส ${caseId} ใช่หรือไม่?`)) return;
+      try {
+        const res = await fetch(`/api/cases/${caseId}/cancel`, { method: 'POST' });
+        const data = await res.json();
+        if (data.status === 'success') {
+          alert('✅ ยกเลิกเคสเรียบร้อยแล้ว');
+          closeModal('modal-case-detail');
+          loadCitizenCases();
+        } else {
+          alert('❌ ' + (data.detail || data.message));
+        }
+      } catch (e) {
+        alert('เกิดข้อผิดพลาด: ' + e.message);
+      }
+    }
+
+    // ----------------------------------------------------
+    // CITIZEN VIEW LOGIC
+    // ----------------------------------------------------
+    function setCitizenTab(tab) {
+      const isReport = tab === 'report';
+      document.getElementById('citizen-tab-report').classList.toggle('hidden', !isReport);
+      document.getElementById('citizen-tab-history').classList.toggle('hidden', isReport);
+      
+      document.getElementById('tab-btn-report').className = isReport 
+        ? 'pb-3 text-sm font-semibold border-b-2 border-blue-600 text-blue-600 flex items-center'
+        : 'pb-3 text-sm font-medium text-slate-500 hover:text-slate-800 flex items-center';
+        
+      document.getElementById('tab-btn-history').className = !isReport 
+        ? 'pb-3 text-sm font-semibold border-b-2 border-blue-600 text-blue-600 flex items-center'
+        : 'pb-3 text-sm font-medium text-slate-500 hover:text-slate-800 flex items-center';
+
+      if (isReport && reportMap) {
+        setTimeout(() => reportMap.invalidateSize(), 200);
+      } else {
+        loadCitizenCases();
+      }
+    }
+
+    function initReportMap() {
+      if (reportMap) return;
+      reportMap = L.map('report-map').setView([currentLat, currentLng], 14);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap' }).addTo(reportMap);
+
+      reportMarker = L.marker([currentLat, currentLng], { draggable: true }).addTo(reportMap);
+      reportMarker.on('dragend', function (e) {
+        const pos = reportMarker.getLatLng();
+        updateCoords(pos.lat, pos.lng);
+      });
+      reportMap.on('click', function (e) {
+        reportMarker.setLatLng(e.latlng);
+        updateCoords(e.latlng.lat, e.latlng.lng);
+      });
+    }
+
+    function updateCoords(lat, lng) {
+      currentLat = lat;
+      currentLng = lng;
+      document.getElementById('disp-lat').innerText = lat.toFixed(4);
+      document.getElementById('disp-lng').innerText = lng.toFixed(4);
+    }
+
+    function useCurrentLocation() {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            const lat = pos.coords.latitude;
+            const lng = pos.coords.longitude;
+            reportMarker.setLatLng([lat, lng]);
+            reportMap.setView([lat, lng], 15);
+            updateCoords(lat, lng);
+          },
+          () => alert("ไม่สามารถเข้าถึงพิกัดปัจจุบันได้ กรุณาลากหมุดบนแผนที่")
+        );
+      }
+    }
+
+    function selectSampleImage(url, defaultDesc) {
+      selectedSampleImage = url;
+      document.getElementById('report-image-input').value = "";
+      document.getElementById('upload-placeholder').classList.add('hidden');
+      document.getElementById('preview-container').classList.remove('hidden');
+      const img = document.getElementById('preview-img');
+      img.src = url;
+
+      if (!document.getElementById('report-description').value) {
+        document.getElementById('report-description').value = defaultDesc;
+      }
+      simulateAIPreview(url, defaultDesc);
+    }
+
+    function handleImageSelect(e) {
+      const file = e.target.files[0];
+      if (file) {
+        selectedSampleImage = null;
+        const reader = new FileReader();
+        reader.onload = function(evt) {
+          document.getElementById('upload-placeholder').classList.add('hidden');
+          document.getElementById('preview-container').classList.remove('hidden');
+          const img = document.getElementById('preview-img');
+          img.src = evt.target.result;
+          simulateAIPreview(file.name, document.getElementById('report-description').value);
+        };
+        reader.readAsDataURL(file);
+      }
+    }
+
+    function simulateAIPreview(nameOrUrl, desc) {
+      let type = "หลุมบ่อบนผิวจราจร (Pothole)";
+      let sev = "ปานกลาง";
+      let budget = "12,500";
+      let conf = "94.6%";
+
+      const lower = (nameOrUrl + " " + (desc || "")).toLowerCase();
+      if (lower.includes("crack") || lower.includes("แตก")) {
+        type = "รอยแตกลายจระเข้ (Alligator Cracking)";
+        sev = "ปานกลาง";
+        budget = "9,500";
+        conf = "93.4%";
+      } else if (lower.includes("depression") || lower.includes("ทรุด")) {
+        type = "ผิวทางทรุดตัว (Road Depression)";
+        sev = "สูง";
+        budget = "24,000";
+        conf = "91.8%";
+      } else if (lower.includes("ลึก") || lower.includes("อันตราย")) {
+        type = "หลุมบ่อขนาดใหญ่และลึก (Severe Pothole)";
+        sev = "วิกฤต";
+        budget = "35,000";
+        conf = "96.2%";
+      }
+
+      document.getElementById('ai-prev-type').innerText = type;
+      document.getElementById('ai-prev-sev').innerText = sev;
+      document.getElementById('ai-prev-budget').innerText = `฿${budget}`;
+      document.getElementById('ai-prev-conf').innerText = conf;
+    }
+
+    async function submitDamageReport() {
+      const desc = document.getElementById('report-description').value.trim();
+      const addr = document.getElementById('report-address').value.trim();
+      const fileInput = document.getElementById('report-image-input');
+
+      if (!desc) { alert("กรุณากรอกรายละเอียดความเสียหาย"); return; }
+      if (!addr) { alert("กรุณาระบุสถานที่เกิดเหตุ"); return; }
+
+      const btn = document.getElementById('btn-submit-report');
+      btn.disabled = true;
+      btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-1"></i> กำลังส่งข้อมูล...`;
+
+      const formData = new FormData();
+      formData.append("reporter_id", currentUser.user_id);
+      formData.append("reporter_name", currentUser.full_name);
+      formData.append("description", desc);
+      formData.append("latitude", currentLat);
+      formData.append("longitude", currentLng);
+      formData.append("location_address", addr);
+
+      if (fileInput.files.length > 0) {
+        formData.append("image", fileInput.files[0]);
+      } else if (selectedSampleImage) {
+        formData.append("sample_image_url", selectedSampleImage);
+      } else {
+        formData.append("sample_image_url", "/static/sample_images/pothole_1.jpg");
+      }
+
+      try {
+        const res = await fetch("/api/cases", { method: "POST", body: formData });
+        const data = await res.json();
+        if (data.status === "success") {
+          alert(`✅ แจ้งเหตุสำเร็จ!\nรหัสเคส: ${data.case_id}\nผลการวิเคราะห์ AI: ${data.ai_result.damage_type}`);
+          document.getElementById('report-description').value = "";
+          document.getElementById('report-address').value = "";
+          document.getElementById('upload-placeholder').classList.remove('hidden');
+          document.getElementById('preview-container').classList.add('hidden');
+          selectedSampleImage = null;
+          setCitizenTab('history');
+        } else {
+          alert("เกิดข้อผิดพลาดในการบันทึกข้อมูล");
+        }
+      } catch (err) {
+        alert("ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์: " + err.message);
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = `<i class="fa-solid fa-paper-plane mr-1.5"></i> ยืนยันการแจ้งเหตุ`;
+      }
+    }
+
+    async function loadCitizenCases() {
+      const container = document.getElementById('citizen-cases-list');
+      if (!currentUser) return;
+      try {
+        const res = await fetch(`/api/cases?reporter_id=${currentUser.user_id}`);
+        const cases = await res.json();
+
+        if (cases.length === 0) {
+          container.innerHTML = `<div class="text-center py-8 text-slate-400">ยังไม่มีรายการแจ้งเหตุของคุณ</div>`;
+          return;
+        }
+
+        container.innerHTML = cases.map(c => `
+          <div class="border border-slate-200 rounded-xl p-4 bg-white shadow-sm hover:border-slate-300 transition">
+            <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-2 pb-2.5 border-b border-slate-100">
+              <div class="flex items-center space-x-2">
+                <span class="text-xs font-bold text-slate-900">${c.case_id}</span>
+                <span class="text-[11px] text-slate-400">${c.created_at}</span>
+              </div>
+              <div class="flex items-center space-x-2">
+                ${getStatusBadge(c.status)}
+                <button onclick="viewCaseDetails('${c.case_id}')" class="text-[11px] px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg border">
+                  ดูรายละเอียด
+                </button>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-12 gap-3 py-3">
+              <div class="sm:col-span-3">
+                <img src="${c.image_url}" class="w-full h-28 object-cover rounded-lg border" alt="road">
+              </div>
+              <div class="sm:col-span-9 space-y-1.5 text-xs">
+                <div><span class="text-slate-400">สถานที่:</span> <strong class="text-slate-800">${c.location_address}</strong></div>
+                <div><span class="text-slate-400">รายละเอียด:</span> <p class="text-slate-700 mt-0.5 line-clamp-2">${c.description}</p></div>
+                <div class="flex flex-wrap gap-1.5 pt-1">
+                  <span class="bg-slate-100 text-slate-700 px-2 py-0.5 rounded text-[10px] border">${c.damage_type || 'AI วิเคราะห์แล้ว'}</span>
+                  <span class="bg-slate-100 text-slate-700 px-2 py-0.5 rounded text-[10px] border">ความรุนแรง: ${c.severity_level || '-'}</span>
+                </div>
+              </div>
+            </div>
+
+            ${c.status === 'ปิดงานซ่อมบำรุง' ? `
+              <div class="mt-2.5 pt-2.5 border-t border-slate-100 flex flex-col sm:flex-row justify-between sm:items-center gap-2 text-xs">
+                ${!c.feedback_rating ? `
+                  <div class="flex items-center space-x-2.5 text-amber-900 bg-amber-50/90 p-2.5 rounded-xl border border-amber-200/90 w-full sm:w-auto">
+                    <span class="w-6 h-6 rounded-full bg-amber-500 text-white flex items-center justify-center font-bold text-xs shadow-sm flex-shrink-0 animate-pulse">
+                      <i class="fa-solid fa-star text-[10px]"></i>
+                    </span>
+                    <div>
+                      <strong class="text-amber-900 block text-xs">ซ่อมแซมเสร็จสิ้นแล้ว: รอการประเมิน</strong>
+                      <span class="text-slate-600 text-[11px]">เจ้าหน้าที่ปิดงานซ่อมแล้ว ขอเชิญท่านร่วมประเมินความพึงพอใจ</span>
+                    </div>
+                  </div>
+                  <button onclick="openFeedbackModal('${c.case_id}')" class="px-3.5 py-2 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-white rounded-xl text-xs font-semibold shadow-sm transition flex items-center justify-center space-x-1.5 whitespace-nowrap">
+                    <i class="fa-solid fa-star"></i>
+                    <span>ประเมินความพึงพอใจ</span>
+                  </button>
+                ` : `
+                  <div class="flex items-center space-x-2 text-slate-600 py-1">
+                    <i class="fa-solid fa-circle-check text-emerald-500"></i>
+                    <span>ประเมินความพึงพอใจแล้ว:</span>
+                    <strong class="text-amber-500 font-bold">${'★'.repeat(c.feedback_rating)}${'☆'.repeat(5 - c.feedback_rating)}</strong>
+                    ${c.feedback_comments ? `<span class="text-slate-400 italic text-[11px] truncate max-w-xs">"${c.feedback_comments}"</span>` : ''}
+                  </div>
+                `}
+              </div>
+            ` : ''}
+          </div>
+        `).join('');
+
+      } catch (err) {
+        container.innerHTML = `<div class="text-rose-500 text-xs py-4">โหลดข้อมูลล้มเหลว</div>`;
+      }
+    }
+
+    // ----------------------------------------------------
+    // AUTHORITY VIEW LOGIC
+    // ----------------------------------------------------
+    async function loadDashboardStats() {
+      try {
+        const res = await fetch("/api/dashboard/stats");
+        const s = await res.json();
+        document.getElementById('kpi-total').innerText = s.total_cases;
+        document.getElementById('kpi-pending').innerText = s.pending_review;
+        document.getElementById('kpi-progress').innerText = s.in_progress;
+        document.getElementById('kpi-completed').innerText = s.completed;
+        document.getElementById('kpi-budget').innerText = `฿${Number(s.total_budget).toLocaleString()}`;
+        document.getElementById('kpi-rating').innerText = s.avg_rating.toFixed(1);
+        renderSeverityChart(s.severity_dist);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    function renderSeverityChart(dist) {
+      const ctx = document.getElementById('severityChart');
+      if (!ctx) return;
+      if (severityChartInstance) severityChartInstance.destroy();
+
+      severityChartInstance = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: Object.keys(dist),
+          datasets: [{
+            data: Object.values(dist),
+            backgroundColor: ['#ef4444', '#f59e0b', '#3b82f6', '#10b981'],
+            borderWidth: 2,
+            borderColor: '#ffffff'
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: 'bottom', labels: { boxWidth: 10, font: { family: 'Prompt', size: 10 } } }
+          }
+        }
+      });
+    }
+
+    async function loadAuthorityCases() {
+      const filter = document.getElementById('authority-filter-status').value;
+      const tbody = document.getElementById('authority-cases-tbody');
+      try {
+        let url = "/api/cases";
+        if (filter) url += `?status=${encodeURIComponent(filter)}`;
+        const res = await fetch(url);
+        const cases = await res.json();
+
+        // Cache for lookup
+        cases.forEach(c => { cachedCasesMap[c.case_id] = c; });
+
+        tbody.innerHTML = cases.map(c => `
+          <tr class="hover:bg-slate-50 transition border-b border-slate-100">
+            <td class="py-2.5 px-3 font-semibold text-slate-900 whitespace-nowrap">
+              <a href="javascript:void(0)" onclick="viewCaseDetails('${c.case_id}')" class="text-blue-600 hover:underline">
+                ${c.case_id}
+              </a>
+            </td>
+            <td class="py-2.5 px-3">
+              <div class="flex items-center space-x-2">
+                <img src="${c.image_url}" class="w-10 h-10 object-cover rounded-md border" alt="thumb">
+                <div class="max-w-[180px]">
+                  <div class="font-medium text-slate-800 truncate">${c.location_address}</div>
+                  <div class="text-[10px] text-slate-400 truncate">${c.description}</div>
+                </div>
+              </div>
+            </td>
+            <td class="py-2.5 px-3">
+              <div class="font-medium text-slate-800">${c.damage_type || '-'}</div>
+              <div class="text-[10px] text-slate-400">AI แม่นยำ: <span class="font-medium text-slate-700">${c.confidence_score || '-'}%</span></div>
+            </td>
+            <td class="py-2.5 px-3 whitespace-nowrap">
+              <div class="font-semibold text-slate-800">฿${Number(c.estimated_budget || 0).toLocaleString()}</div>
+              <div class="text-[10px] text-slate-400">ระดับ: <span class="font-medium text-slate-700">${c.severity_level || '-'}</span></div>
+            </td>
+            <td class="py-2.5 px-3">${getStatusBadge(c.status)}</td>
+            <td class="py-2.5 px-3 text-slate-600 whitespace-nowrap">${c.technician_name || '-'}</td>
+            <td class="py-2.5 px-3 text-center whitespace-nowrap">
+              <div class="flex items-center justify-center space-x-1.5">
+                <!-- ดูรายละเอียดปุ่มหลัก -->
+                <button onclick="viewCaseDetails('${c.case_id}')" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-md text-[11px] font-medium border border-slate-200 shadow-sm" title="ดูรายละเอียดเคสนี้">
+                  <i class="fa-solid fa-eye mr-1 text-slate-500"></i> ดูรายละเอียด
+                </button>
+
+                ${c.status === 'รอตรวจสอบ' ? `
+                  <button onclick="openApproveModal('${c.case_id}', ${c.estimated_budget})" class="px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-[11px] font-medium shadow-sm">
+                    อนุมัติ
+                  </button>
+                  <button onclick="openRejectModal('${c.case_id}')" class="px-2 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-md text-[11px] font-medium border border-rose-200">
+                    ปฏิเสธ
+                  </button>
+                ` : c.status === 'รอตรวจรับงาน' ? `
+                  <button onclick="openInspectModal('${c.work_order_id}', '${c.image_url}', '${c.after_image_url}')" class="px-2 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-md text-[11px] font-medium shadow-sm">
+                    ตรวจรับ
+                  </button>
+                ` : ''}
+              </div>
+            </td>
+          </tr>
+        `).join('');
+
+        // Populate Mobile Card View
+        const mobileContainer = document.getElementById('authority-cases-mobile-list');
+        if (mobileContainer) {
+          if (cases.length === 0) {
+            mobileContainer.innerHTML = '<div class="p-6 text-center text-slate-400 bg-white rounded-xl border border-slate-200 text-xs">ไม่พบรายการเคสในสถานะนี้</div>';
+          } else {
+            mobileContainer.innerHTML = cases.map(c => `
+              <div class="bg-white rounded-xl p-3.5 border border-slate-200 shadow-sm space-y-2.5">
+                <div class="flex justify-between items-start gap-2">
+                  <div>
+                    <span class="text-xs font-bold text-slate-900 block">${c.case_id}</span>
+                    <span class="text-[10px] text-slate-400">${c.created_at || '-'}</span>
+                  </div>
+                  <div>${getStatusBadge(c.status)}</div>
+                </div>
+
+                <div class="flex gap-2.5">
+                  <img src="${c.image_url}" class="w-16 h-16 object-cover rounded-lg border border-slate-200 flex-shrink-0" alt="case">
+                  <div class="text-xs space-y-1 flex-grow min-w-0">
+                    <p class="font-medium text-slate-800 truncate">${c.location_address}</p>
+                    <p class="text-[11px] text-slate-500 line-clamp-1">${c.description}</p>
+                    <div class="flex flex-wrap items-center gap-1.5 pt-0.5">
+                      <span class="bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded text-[10px] border">${c.damage_type || 'AI วิเคราะห์'}</span>
+                      <span class="text-[10px] font-semibold text-emerald-700">฿${Number(c.estimated_budget || 0).toLocaleString()}</span>
+                    </div>
+                  </div>
+                </div>
+
+                ${c.technician_name ? `
+                  <div class="text-[11px] text-slate-500 flex items-center pt-1 border-t border-slate-100">
+                    <i class="fa-solid fa-user-gear text-slate-400 mr-1.5"></i>
+                    <span>ช่างผู้รับผิดชอบ: <strong class="text-slate-700">${c.technician_name}</strong></span>
+                  </div>
+                ` : ''}
+
+                <div class="flex items-center gap-1.5 pt-1.5 border-t border-slate-100">
+                  <button onclick="viewCaseDetails('${c.case_id}')" class="flex-1 py-2 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-700 rounded-lg text-xs font-medium border border-slate-200 flex items-center justify-center">
+                    <i class="fa-solid fa-eye mr-1 text-slate-500"></i> ดูรายละเอียด
+                  </button>
+
+                  ${c.status === 'รอตรวจสอบ' ? `
+                    <button onclick="openApproveModal('${c.case_id}', ${c.estimated_budget})" class="flex-1 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-lg text-xs font-medium shadow-xs">
+                      อนุมัติ
+                    </button>
+                    <button onclick="openRejectModal('${c.case_id}')" class="py-2 px-3 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-lg text-xs font-medium border border-rose-200">
+                      ปฏิเสธ
+                    </button>
+                  ` : c.status === 'รอตรวจรับงาน' ? `
+                    <button onclick="openInspectModal('${c.work_order_id}', '${c.image_url}', '${c.after_image_url}')" class="flex-1 py-2 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white rounded-lg text-xs font-medium shadow-xs">
+                      ตรวจรับงาน
+                    </button>
+                  ` : ''}
+                </div>
+              </div>
+            `).join('');
+          }
+        }
+
+        initAuthorityMap(cases);
+      } catch (err) {
+        tbody.innerHTML = `<tr><td colspan="7" class="py-4 text-center text-rose-500">โหลดข้อมูลล้มเหลว</td></tr>`;
+        const mobileContainer = document.getElementById('authority-cases-mobile-list');
+        if (mobileContainer) mobileContainer.innerHTML = '<div class="py-4 text-center text-rose-500 text-xs">โหลดข้อมูลล้มเหลว</div>';
+      }
+    }
+
+    function initAuthorityMap(cases) {
+      if (!authorityMap) {
+        authorityMap = L.map('authority-map').setView([13.78, 100.56], 12);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap' }).addTo(authorityMap);
+      }
+
+      authorityMarkers.forEach(m => authorityMap.removeLayer(m));
+      authorityMarkers = [];
+
+      cases.forEach(c => {
+        if (c.latitude && c.longitude) {
+          const marker = L.marker([c.latitude, c.longitude]).addTo(authorityMap);
+          marker.bindPopup(`
+            <div class="text-xs p-1">
+              <strong class="text-slate-900 block">${c.case_id}</strong>
+              <div class="my-1 font-medium text-slate-700">${c.location_address}</div>
+              <div class="mb-1">${getStatusBadge(c.status)}</div>
+              <button onclick="viewCaseDetails('${c.case_id}')" class="mt-1 text-[11px] text-blue-600 font-semibold underline block">
+                ดูรายละเอียดเคสนี้
+              </button>
+            </div>
+          `);
+          authorityMarkers.push(marker);
+        }
+      });
+    }
+
+    // ----------------------------------------------------
+    // TECHNICIAN VIEW LOGIC
+    // ----------------------------------------------------
+    async function loadTechnicianOrders() {
+      const container = document.getElementById('technician-orders-list');
+      if (!currentUser) return;
+      try {
+        const res = await fetch(`/api/work-orders?technician_id=${currentUser.user_id}`);
+        const orders = await res.json();
+
+        if (orders.length === 0) {
+          container.innerHTML = `<div class="col-span-3 text-center py-10 text-slate-400 bg-white rounded-xl border">ไม่มีใบงานค้างอยู่</div>`;
+          return;
+        }
+
+        container.innerHTML = orders.map(w => `
+          <div class="bg-white rounded-xl p-4 border border-slate-200 shadow-sm flex flex-col justify-between">
+            <div class="space-y-2.5">
+              <div class="flex justify-between items-center">
+                <span class="text-xs font-bold text-slate-800">${w.work_order_id}</span>
+                ${getStatusBadge(w.status)}
+              </div>
+              <h4 class="text-xs font-bold text-slate-900">${w.location_address}</h4>
+              <p class="text-xs text-slate-600 line-clamp-2">${w.description}</p>
+              
+              <div class="grid grid-cols-2 gap-2 text-[11px] bg-slate-50 p-2 rounded-lg border">
+                <div><span class="text-slate-400 block text-[10px]">ประเภท:</span> <strong>${w.damage_type || '-'}</strong></div>
+                <div><span class="text-slate-400 block text-[10px]">งบอนุมัติ:</span> <strong class="text-emerald-700">฿${Number(w.approved_budget).toLocaleString()}</strong></div>
+              </div>
+
+              ${w.status === 'สั่งแก้ไขงาน' && w.inspection_notes ? `
+                <div class="bg-amber-50 border border-amber-200 rounded-lg p-2 text-[11px] text-amber-900">
+                  <div class="font-bold flex items-center text-amber-800"><i class="fa-solid fa-triangle-exclamation mr-1 text-amber-600"></i> ข้อสั่งการแก้ไขจากหน่วยงาน:</div>
+                  <div class="mt-0.5 text-slate-700">${w.inspection_notes}</div>
+                </div>
+              ` : ''}
+
+              <div class="flex justify-between items-center pt-1 text-[11px]">
+                <a href="https://www.google.com/maps?q=${w.latitude},${w.longitude}" target="_blank" class="text-blue-600 hover:underline flex items-center">
+                  <i class="fa-solid fa-location-arrow mr-1"></i> นำทาง
+                </a>
+                <button onclick="viewCaseDetails('${w.case_id}')" class="text-slate-600 hover:underline">
+                  ดูรายละเอียดเคส
+                </button>
+              </div>
+            </div>
+
+            <div class="pt-3 border-t border-slate-100 mt-3">
+              ${w.status === 'มอบหมายแล้ว' ? `
+                <button onclick="startWork('${w.work_order_id}')" class="w-full py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-medium">
+                  เริ่มลงพื้นที่ปฏิบัติงาน
+                </button>
+              ` : w.status === 'กำลังดำเนินการซ่อม' || w.status === 'สั่งแก้ไขงาน' ? `
+                <button onclick="openSubmitWorkModal('${w.work_order_id}')" class="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-medium">
+                  ส่งผลงานซ่อมเสร็จ
+                </button>
+              ` : `
+                <div class="text-center text-xs text-slate-400 py-1">ส่งผลงานแล้ว รอตรวจรับ</div>
+              `}
+            </div>
+          </div>
+        `).join('');
+
+      } catch (err) {
+        container.innerHTML = `<div class="text-rose-500 text-xs py-4">โหลดข้อมูลล้มเหลว</div>`;
+      }
+    }
+
+    async function startWork(woId) {
+      if (!confirm("ยืนยันเริ่มปฏิบัติงานซ่อมแซมใบงานนี้?")) return;
+      try {
+        const res = await fetch(`/api/work-orders/${woId}/start`, { method: "POST" });
+        const data = await res.json();
+        if (data.status === "success") {
+          alert("✅ ปรับสถานะเป็นกำลังดำเนินการซ่อมแล้ว");
+          loadTechnicianOrders();
+        }
+      } catch (e) {
+        alert(e.message);
+      }
+    }
+
+    // Modal Helpers
+    function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
+    function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+
+    async function loadTechniciansDropdown() {
+      try {
+        const res = await fetch("/api/technicians");
+        const techs = await res.json();
+        const sel = document.getElementById('approve-tech-id');
+        sel.innerHTML = techs.map(t => `<option value="${t.user_id}">${t.full_name} (${t.team_name || 'ทีมช่างซ่อมบำรุง'})</option>`).join('');
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    function openApproveModal(caseId, estBudget) {
+      document.getElementById('approve-case-id').value = caseId;
+      document.getElementById('approve-disp-case-id').innerText = caseId;
+      document.getElementById('approve-budget').value = estBudget || 15000;
+      document.getElementById('approve-ai-budget-hint').innerText = Number(estBudget || 0).toLocaleString();
+      openModal('modal-approve');
+    }
+
+    async function confirmApproveCase() {
+      const caseId = document.getElementById('approve-case-id').value;
+      const techId = document.getElementById('approve-tech-id').value;
+      const budget = parseFloat(document.getElementById('approve-budget').value);
+      const notes = document.getElementById('approve-notes').value;
+
+      try {
+        const res = await fetch(`/api/cases/${caseId}/approve`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ technician_id: techId, approved_budget: budget, notes: notes })
+        });
+        const data = await res.json();
+        if (data.status === "success") {
+          alert("✅ อนุมัติและสร้างใบงาน " + data.work_order_id + " สำเร็จ!");
+          closeModal('modal-approve');
+          loadAuthorityCases();
+          loadDashboardStats();
+        }
+      } catch (e) {
+        alert(e.message);
+      }
+    }
+
+    function openRejectModal(caseId) {
+      document.getElementById('reject-case-id').value = caseId;
+      document.getElementById('reject-disp-case-id').innerText = caseId;
+      openModal('modal-reject');
+    }
+
+    async function confirmRejectCase() {
+      const caseId = document.getElementById('reject-case-id').value;
+      const reason = document.getElementById('reject-reason').value.trim();
+      if (!reason) { alert("กรุณาระบุเหตุผล"); return; }
+
+      try {
+        const res = await fetch(`/api/cases/${caseId}/reject`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ reason: reason })
+        });
+        const data = await res.json();
+        if (data.status === "success") {
+          alert("ปฏิเสธเคสเรียบร้อยแล้ว");
+          closeModal('modal-reject');
+          loadAuthorityCases();
+          loadDashboardStats();
+        }
+      } catch (e) {
+        alert(e.message);
+      }
+    }
+
+    // Technician Work Submit
+    function openSubmitWorkModal(woId) {
+      document.getElementById('submit-wo-id').value = woId;
+      document.getElementById('submit-disp-wo-id').innerText = woId;
+      selectedSampleAfterImage = null;
+      document.getElementById('submit-after-preview').classList.add('hidden');
+      document.getElementById('submit-img-placeholder').classList.remove('hidden');
+      openModal('modal-submit-work');
+    }
+
+    function selectSampleAfterImg(url, noteText) {
+      selectedSampleAfterImage = url;
+      document.getElementById('submit-after-file').value = "";
+      document.getElementById('submit-img-placeholder').classList.add('hidden');
+      const img = document.getElementById('submit-after-preview');
+      img.src = url;
+      img.classList.remove('hidden');
+      document.getElementById('submit-repair-notes').value = noteText || "ดำเนินการซ่อมแซมบดอัดผิวทางเรียบร้อยตามมาตรฐาน";
+    }
+
+    function previewSubmitAfterImg(e) {
+      const f = e.target.files[0];
+      if (f) {
+        selectedSampleAfterImage = null;
+        const reader = new FileReader();
+        reader.onload = function(evt) {
+          document.getElementById('submit-img-placeholder').classList.add('hidden');
+          const img = document.getElementById('submit-after-preview');
+          img.src = evt.target.result;
+          img.classList.remove('hidden');
+        };
+        reader.readAsDataURL(f);
+      }
+    }
+
+    async function confirmSubmitWork() {
+      const woId = document.getElementById('submit-wo-id').value;
+      const notes = document.getElementById('submit-repair-notes').value.trim();
+      const fileInput = document.getElementById('submit-after-file');
+
+      if (!notes) { alert("กรุณาระบุรายละเอียดผลงาน"); return; }
+
+      const fd = new FormData();
+      fd.append("repair_notes", notes);
+      if (fileInput.files.length > 0) {
+        fd.append("image", fileInput.files[0]);
+      } else if (selectedSampleAfterImage) {
+        fd.append("sample_after_image_url", selectedSampleAfterImage);
+      } else {
+        fd.append("sample_after_image_url", "/static/sample_images/pothole_1_repaired.jpg");
+      }
+
+      try {
+        const res = await fetch(`/api/work-orders/${woId}/submit`, { method: "POST", body: fd });
+        const data = await res.json();
+        if (data.status === "success") {
+          alert("✅ ส่งผลงานซ่อมเสร็จเพื่อรอการตรวจรับเรียบร้อยแล้ว");
+          closeModal('modal-submit-work');
+          loadTechnicianOrders();
+        }
+      } catch (e) {
+        alert(e.message);
+      }
+    }
+
+    function openInspectModal(woId, beforeImg, afterImg) {
+      document.getElementById('inspect-wo-id').value = woId;
+      document.getElementById('inspect-before-img').src = beforeImg || '/static/sample_images/pothole_1.jpg';
+      document.getElementById('inspect-after-img').src = afterImg || '/static/sample_images/pothole_1_repaired.jpg';
+      openModal('modal-inspect');
+    }
+
+    async function confirmInspectWork(decision) {
+      const woId = document.getElementById('inspect-wo-id').value;
+      const notes = document.getElementById('inspect-notes').value;
+
+      try {
+        const res = await fetch(`/api/work-orders/${woId}/inspect`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ decision: decision, notes: notes })
+        });
+        const data = await res.json();
+        if (data.status === "success") {
+          alert("✅ " + data.message);
+          closeModal('modal-inspect');
+          loadAuthorityCases();
+          loadDashboardStats();
+        }
+      } catch (e) {
+        alert(e.message);
+      }
+    }
+
+    function openFeedbackModal(caseId) {
+      document.getElementById('fb-case-id').value = caseId;
+      document.getElementById('fb-disp-case-id').innerText = caseId;
+      document.getElementById('fb-comments').value = "";
+      setRating(5);
+      openModal('modal-feedback');
+    }
+
+    function setRating(val) {
+      document.getElementById('fb-rating-val').value = val;
+      const stars = document.getElementById('star-container').children;
+      for (let i = 0; i < 5; i++) {
+        if (i < val) {
+          stars[i].className = 'fa-solid fa-star cursor-pointer text-yellow-400';
+        } else {
+          stars[i].className = 'fa-solid fa-star cursor-pointer text-slate-300 hover:text-yellow-400';
+        }
+      }
+    }
+
+    function presetFeedback(stars, comment) {
+      setRating(stars);
+      document.getElementById('fb-comments').value = comment;
+    }
+
+    async function confirmSubmitFeedback() {
+      const caseId = document.getElementById('fb-case-id').value;
+      const rating = parseInt(document.getElementById('fb-rating-val').value);
+      const comments = document.getElementById('fb-comments').value;
+
+      try {
+        const res = await fetch(`/api/cases/${caseId}/feedback`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            user_id: currentUser.user_id,
+            user_name: currentUser.full_name,
+            rating: rating,
+            comments: comments
+          })
+        });
+        const data = await res.json();
+        if (data.status === "success") {
+          alert("🌟 บันทึกการประเมินความพึงพอใจสำเร็จ!");
+          closeModal('modal-feedback');
+          loadCitizenCases();
+        }
+      } catch (e) {
+        alert(e.message);
+      }
+    }
+
+    // Helper Badges (Covering All 8 States from State Machine)
+    function getStatusBadge(status) {
+      if (status === 'รอตรวจสอบ') return `<span class="status-badge status-pending"><i class="fa-solid fa-clock mr-1"></i>รอตรวจสอบ</span>`;
+      if (status === 'มอบหมายงานแล้ว') return `<span class="status-badge status-assigned"><i class="fa-solid fa-user-check mr-1"></i>มอบหมายงานแล้ว</span>`;
+      if (status === 'กำลังดำเนินการซ่อม') return `<span class="status-badge status-repairing"><i class="fa-solid fa-wrench mr-1"></i>กำลังดำเนินการซ่อม</span>`;
+      if (status === 'รอตรวจรับงาน') return `<span class="status-badge status-inspecting"><i class="fa-solid fa-magnifying-glass mr-1"></i>รอตรวจรับงาน</span>`;
+      if (status === 'สั่งแก้ไขงาน') return `<span class="status-badge status-revision"><i class="fa-solid fa-rotate-left mr-1"></i>สั่งแก้ไขงาน</span>`;
+      if (status === 'ปิดงานซ่อมบำรุง') return `<span class="status-badge status-closed"><i class="fa-solid fa-circle-check mr-1"></i>ปิดงานซ่อมบำรุง</span>`;
+      if (status === 'ปฏิเสธเคส') return `<span class="status-badge status-rejected"><i class="fa-solid fa-ban mr-1"></i>ปฏิเสธเคส</span>`;
+      if (status === 'ยกเลิกเคส') return `<span class="status-badge status-cancelled"><i class="fa-solid fa-xmark mr-1"></i>ยกเลิกเคส</span>`;
+      return `<span class="status-badge bg-slate-100 text-slate-700">${status}</span>`;
+    }
+
+    // SA Diagrams Modal
+    function openDiagramsModal() {
+      openModal('modal-diagrams');
+      showDiagramTab('state');
+    }
+
+    function showDiagramTab(type) {
+      const content = document.getElementById('diagram-content-box');
+      ['state', 'class', 'usecase', 'dfd', 'activity', 'sequence'].forEach(t => {
+        const btn = document.getElementById(`diag-btn-${t}`);
+        if (t === type) {
+          btn.className = 'px-2.5 py-1 rounded-lg bg-blue-600 text-white font-medium';
+        } else {
+          btn.className = 'px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200';
+        }
+      });
+
+      if (type === 'state') {
+        content.innerHTML = `
+          <div class="space-y-3">
+            <h4 class="font-bold text-sm text-slate-900">State Machine & Statechart Diagram (ตรวจสอบครบทุกสถานะตามเอกสาร SA หน้า 9-10)</h4>
+            <div class="p-3 bg-slate-50 border rounded-xl space-y-2">
+              <strong class="text-slate-800">1. วงจรชีวิตของเคสแจ้งซ่อม (Case Lifecycle States):</strong>
+              <div class="flex flex-wrap items-center gap-1.5 py-1 text-[11px]">
+                <span class="px-2 py-0.5 rounded bg-amber-100 text-amber-800 font-medium">รอตรวจสอบ</span>
+                <span>➔ (อนุมัติ) ➔</span>
+                <span class="px-2 py-0.5 rounded bg-indigo-100 text-indigo-800 font-medium">มอบหมายงานแล้ว</span>
+                <span>➔ (ลงพื้นที่) ➔</span>
+                <span class="px-2 py-0.5 rounded bg-orange-100 text-orange-800 font-medium">กำลังดำเนินการซ่อม</span>
+                <span>➔ (ส่งงาน) ➔</span>
+                <span class="px-2 py-0.5 rounded bg-purple-100 text-purple-800 font-medium">รอตรวจรับงาน</span>
+                <span>➔ (ผ่าน) ➔</span>
+                <span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-medium">ปิดงานซ่อมบำรุง (Closed)</span>
+              </div>
+              <div class="pt-1 text-slate-600 text-[11px] space-y-1">
+                <p>• <strong>ไม่อนุมัติ:</strong> จาก [รอตรวจสอบ] ➔ เปลี่ยนเป็น <span class="text-rose-600 font-semibold">[ปฏิเสธเคส (Rejected)]</span></p>
+                <p>• <strong>ไม่ผ่านเกณฑ์:</strong> จาก [รอตรวจรับงาน] ➔ วนกลับมาที่ <span class="text-amber-700 font-semibold">[สั่งแก้ไขงาน / กำลังดำเนินการซ่อม]</span></p>
+                <p>• <strong>ยกเลิกคำสั่ง:</strong> กรณีไม่มีช่างพร้อมปฏิบัติงาน ➔ เปลี่ยนเป็น <span class="text-slate-600 font-semibold">[ยกเลิกเคส]</span></p>
+              </div>
+            </div>
+          </div>
+        `;
+      } else if (type === 'class') {
+        content.innerHTML = `
+          <div class="space-y-3">
+            <h4 class="font-bold text-sm text-slate-900">Class Diagram สถาปัตยกรรมระบบ FixTogether</h4>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              <div class="p-3 bg-slate-50 border rounded-xl">
+                <strong class="text-slate-800 block">👤 ผู้ใช้งานระบบ (User / Citizen)</strong>
+                <p class="text-slate-600 mt-1">- รหัสบัตรประชาชน, ชื่อผู้ใช้, รหัสผ่าน, เบอร์โทร<br>+ ลงทะเบียน(), แจ้งถนนเสียหาย(), ติดตามสถานะ(), ประเมินความพึงพอใจ()</p>
+              </div>
+              <div class="p-3 bg-slate-50 border rounded-xl">
+                <strong class="text-slate-800 block">📸 รายงานความเสียหาย (DamageReport)</strong>
+                <p class="text-slate-600 mt-1">- รหัสเคส, รูปภาพ, รายละเอียด, พิกัด GPS, วันที่แจ้ง, สถานะ<br>+ สร้างรหัสเคส(), อัปเดตสถานะ()</p>
+              </div>
+              <div class="p-3 bg-slate-50 border rounded-xl">
+                <strong class="text-slate-800 block">🤖 ระบบวิเคราะห์ AI (AIReport)</strong>
+                <p class="text-slate-600 mt-1">- รุ่นโมเดล, ประเภท, ระดับความรุนแรง, งบประมาณ, เวลา, ความแม่นยำ<br>+ วิเคราะห์ความเสียหาย(), คำนวณงบประมาณ()</p>
+              </div>
+              <div class="p-3 bg-slate-50 border rounded-xl">
+                <strong class="text-slate-800 block">🏛️ ใบงานซ่อม (RepairWorkOrder)</strong>
+                <p class="text-slate-600 mt-1">- รหัสใบงาน, รหัสช่าง, งบที่อนุมัติ, รูปหลังซ่อม, สถานะการซ่อม<br>+ ออกใบงาน(), อัปเดตความคืบหน้า(), ปิดงานซ่อม()</p>
+              </div>
+            </div>
+          </div>
+        `;
+      } else if (type === 'usecase') {
+        content.innerHTML = `
+          <div class="space-y-2">
+            <h4 class="font-bold text-sm text-slate-900">Use Cases หลักในระบบ FixTogether</h4>
+            <ul class="list-disc pl-5 space-y-1 text-slate-700">
+              <li><strong>1. เข้าสู่ระบบ & ลงทะเบียน:</strong> ตรวจสอบสิทธิ์ผู้ใช้งานแยกตามบทบาท</li>
+              <li><strong>2. แจ้งถนนที่เสียหาย:</strong> แนบภาพถ่าย พิกัด GPS และคำอธิบาย</li>
+              <li><strong>3. วิเคราะห์ผลด้วย AI:</strong> ตรวจจับประเภท ประเมินงบประมาณและเวลา</li>
+              <li><strong>4. ติดตามสถานะการแจ้งซ่อม:</strong> ติดตามไทม์ไลน์ความคืบหน้าแบบเรียลไทม์</li>
+              <li><strong>5. พิจารณาอนุมัติและออกใบงาน:</strong> เจ้าหน้าที่ตรวจสอบ AI และมอบหมายช่าง</li>
+              <li><strong>6. อัปเดตสถานะงานซ่อม:</strong> ช่างลงพื้นที่และส่งรูปหลังซ่อม</li>
+              <li><strong>7. ตรวจรับและปิดงาน:</strong> เจ้าหน้าที่ตรวจรับผลงานก่อนปิดเคส</li>
+              <li><strong>8. ประเมินความพึงพอใจ:</strong> ประชาชนให้คะแนน 1-5 ดาวและข้อเสนอแนะ</li>
+            </ul>
+          </div>
+        `;
+      } else if (type === 'dfd') {
+        content.innerHTML = `
+          <div class="space-y-2">
+            <h4 class="font-bold text-sm text-slate-900">Data Flow Diagram (Data Stores D1 - D6)</h4>
+            <div class="grid grid-cols-2 gap-2 text-[11px] p-3 bg-slate-50 border rounded-xl">
+              <div><strong>D1:</strong> ข้อมูลส่วนตัวและบัญชีผู้ใช้</div>
+              <div><strong>D2:</strong> ข้อมูลความเสียหายและรูปภาพถนน</div>
+              <div><strong>D3:</strong> ข้อมูลสถิติและการประเมิน AI</div>
+              <div><strong>D4:</strong> ข้อมูลหน่วยงานผู้ดูแลพื้นที่</div>
+              <div><strong>D5:</strong> ข้อมูลการซ่อมบำรุงและใบงาน</div>
+              <div><strong>D6:</strong> ข้อมูลผลการประเมินความพึงพอใจ</div>
+            </div>
+          </div>
+        `;
+      } else if (type === 'activity') {
+        content.innerHTML = `
+          <div class="space-y-2">
+            <h4 class="font-bold text-sm text-slate-900">Activity Diagrams (Swimlanes 3 เลน)</h4>
+            <p class="text-slate-600">แบ่งความรับผิดชอบอย่างชัดเจนระหว่าง <strong>ผู้ใช้งาน ➔ Frontend/Backend ➔ หน่วยงาน ➔ ช่างซ่อมบำรุง</strong></p>
+          </div>
+        `;
+      } else if (type === 'sequence') {
+        content.innerHTML = `
+          <div class="space-y-2">
+            <h4 class="font-bold text-sm text-slate-900">Sequence Diagrams Interaction</h4>
+            <p class="text-slate-600">แสดงการรับส่งข้อมูลตามลำดับเวลา: แจ้งเหตุ ➔ AI ประมวลผล ➔ ออกใบงาน ➔ ส่งผลงานซ่อม ➔ ตรวจรับ ➔ ประเมินความพึงพอใจ</p>
+          </div>
+        `;
+      }
+    }
+  </script>
+</body>
+</html>
