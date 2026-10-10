@@ -2,7 +2,10 @@ import os
 import random
 import json
 from datetime import datetime
-from PIL import Image
+try:
+    from PIL import Image
+except ImportError:
+    Image = None
 
 class RoadDamageAIService:
     def __init__(self, model_version="RoadVision-v2.4-DeepSense"):
@@ -19,7 +22,7 @@ class RoadDamageAIService:
         """
         # Determine image dimensions
         img_w, img_h = 600, 400
-        if os.path.exists(image_path):
+        if Image and os.path.exists(image_path):
             try:
                 with Image.open(image_path) as im:
                     img_w, img_h = im.size

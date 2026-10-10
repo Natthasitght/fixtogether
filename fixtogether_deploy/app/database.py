@@ -41,7 +41,7 @@ def init_db():
         latitude REAL NOT NULL,
         longitude REAL NOT NULL,
         location_address TEXT,
-        status TEXT NOT NULL, -- 'รอตรวจสอบ', 'ปฏิเสธเคส', 'มอบหมายงานแล้ว', 'กำลังดำเนินการซ่อม', 'รอตรวจรับงาน', 'ปิดงานซ่อมบำรุง', 'ยกเลิก'
+        status TEXT NOT NULL, -- 'รอตรวจสอบ', 'เคสถูกสร้าง', 'ปฏิเสธเคส', 'มอบหมายงานแล้ว', 'กำลังดำเนินการซ่อม', 'รอตรวจรับงาน', 'ปิดงานซ่อมบำรุง', 'ยกเลิกเคส'
         reject_reason TEXT,
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL,

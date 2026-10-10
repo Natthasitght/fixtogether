@@ -212,7 +212,7 @@ def get_stats():
     conn = get_db_connection()
     total_cases = conn.execute("SELECT COUNT(*) FROM damage_reports").fetchone()[0]
     pending_review = conn.execute("SELECT COUNT(*) FROM damage_reports WHERE status = 'รอตรวจสอบ'").fetchone()[0]
-    in_progress = conn.execute("SELECT COUNT(*) FROM damage_reports WHERE status IN ('มอบหมายงานแล้ว', 'กำลังดำเนินการซ่อม', 'รอตรวจรับงาน')").fetchone()[0]
+    in_progress = conn.execute("SELECT COUNT(*) FROM damage_reports WHERE status IN ('เคสถูกสร้าง', 'มอบหมายงานแล้ว', 'กำลังดำเนินการซ่อม', 'รอตรวจรับงาน')").fetchone()[0]
     completed = conn.execute("SELECT COUNT(*) FROM damage_reports WHERE status = 'ปิดงานซ่อมบำรุง'").fetchone()[0]
     rejected = conn.execute("SELECT COUNT(*) FROM damage_reports WHERE status = 'ปฏิเสธเคส'").fetchone()[0]
     
@@ -400,6 +400,48 @@ def approve_case(case_id: str, req: ApproveCaseRequest):
     conn.close()
     return {"status": "success", "work_order_id": work_order_id, "message": "อนุมัติและออกใบงานซ่อมเรียบร้อยแล้ว"}
 
+@app.post("/api/cases/{case_id}/approve-create")
+def approve_create_case(case_id: str):
+    """
+    หน่วยงานอนุมัติเคส -> เปลี่ยนสถานะเป็น 'เคสถูกสร้าง' (State Diagram: รอตรวจสอบเคส -> เคสถูกสร้าง)
+    """
+    conn = get_db_connection()
+    case = conn.execute("SELECT * FROM damage_reports WHERE case_id = ?", (case_id,)).fetchone()
+    if not case:
+        conn.close()
+        raise HTTPException(status_code=404, detail="ไม่พบเคส")
+
+    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    conn.execute("""
+    UPDATE damage_reports 
+    SET status = 'เคสถูกสร้าง', updated_at = ?
+    WHERE case_id = ?
+    """, (now_str, case_id))
+    conn.commit()
+    conn.close()
+    return {"status": "success", "message": "อนุมัติเคสเรียบร้อยแล้ว (สถานะเปลี่ยนเป็น 'เคสถูกสร้าง')"}
+
+@app.post("/api/cases/{case_id}/authority-cancel")
+def authority_cancel_case(case_id: str):
+    """
+    หน่วยงานยกเลิกเคส (กรณีไม่พบช่างที่พร้อมปฏิบัติงาน ตาม State Diagram)
+    """
+    conn = get_db_connection()
+    case = conn.execute("SELECT * FROM damage_reports WHERE case_id = ?", (case_id,)).fetchone()
+    if not case:
+        conn.close()
+        raise HTTPException(status_code=404, detail="ไม่พบเคส")
+
+    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    conn.execute("""
+    UPDATE damage_reports 
+    SET status = 'ยกเลิกเคส', updated_at = ?
+    WHERE case_id = ?
+    """, (now_str, case_id))
+    conn.commit()
+    conn.close()
+    return {"status": "success", "message": "ยกเลิกเคสเรียบร้อยแล้ว (รหัสเคสถูกยกเลิก)"}
+
 @app.post("/api/cases/{case_id}/reject")
 def reject_case(case_id: str, req: RejectCaseRequest):
     conn = get_db_connection()
@@ -556,9 +598,9 @@ def cancel_case(case_id: str):
         conn.close()
         raise HTTPException(status_code=404, detail="ไม่พบเคส")
 
-    if case["status"] != "รอตรวจสอบ":
+    if case["status"] not in ("รอตรวจสอบ", "เคสถูกสร้าง"):
         conn.close()
-        raise HTTPException(status_code=400, detail="สามารถยกเลิกได้เฉพาะเคสที่อยู่ในสถานะ 'รอตรวจสอบ' เท่านั้น")
+        raise HTTPException(status_code=400, detail="สามารถยกเลิกได้เฉพาะเคสที่อยู่ในสถานะ 'รอตรวจสอบ' หรือ 'เคสถูกสร้าง' เท่านั้น")
 
     now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     conn.execute("""

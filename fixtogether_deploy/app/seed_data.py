@@ -381,6 +381,27 @@ def seed():
     ))
     # หมายเหตุ: CASE-2026-011 ไม่มีการ INSERT ลงตาราง feedbacks เพื่อให้เป็นตัวอย่างเคสที่รอประชาชนมาประเมินความพึงพอใจ
 
+    # Case 12: เคสถูกสร้าง (Case Created - Approved by Authority, awaiting technician assignment)
+    c12_time = (now - timedelta(hours=5)).strftime("%Y-%m-%d %H:%M:%S")
+    cursor.execute("""
+    INSERT INTO damage_reports VALUES (
+        'CASE-2026-012', 'U001', 'นายสมชาย รักสะอาด',
+        '/static/sample_images/depression_1.jpg',
+        'แผ่นคอนกรีตผิวจราจรทรุดตัวลงลึก รอยต่อถนนแยกตัว หวั่นอันตรายช่วงฝนตกหนักน้ำท่วมขัง',
+        13.7020, 100.5430, 'ถ.พระราม 3 หน้าวัดช่องลม ยานนาวา',
+        'เคสถูกสร้าง', NULL, ?, ?
+    )""", (c12_time, (now - timedelta(hours=2)).strftime("%Y-%m-%d %H:%M:%S")))
+
+    cursor.execute("""
+    INSERT INTO ai_reports VALUES (
+        'AIR-2026-012', 'CASE-2026-012', 'RoadVision-v2.4-DeepSense',
+        'ผิวทางทรุดตัว (Road Depression)', 'สูง',
+        19500.0, 2, 95.4,
+        '[{"x": 180, "y": 110, "width": 260, "height": 180, "label": "Road Depression", "confidence": 95.4}]',
+        'อนุมัติเปิดเคสเรียบร้อยแล้ว (สถานะ: เคสถูกสร้าง) อยู่ระหว่างจัดสรรช่างและออกใบงานเพื่อเข้าปรับระดับผิวทาง',
+        ?
+    )""", (c12_time,))
+
     conn.commit()
     conn.close()
     print("Seeded demo database with all cases including pending-feedback sample successfully!")
