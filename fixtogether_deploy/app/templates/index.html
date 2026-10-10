@@ -259,12 +259,12 @@
             <div id="form-citizen-login" class="space-y-3.5">
               <div>
                 <label class="block text-xs font-medium text-slate-700 mb-1">ชื่อผู้ใช้งาน หรือ เลขบัตรประชาชน</label>
-                <input type="text" id="citizen-login-user" value="somchai" class="w-full text-xs rounded-xl border border-slate-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" placeholder="เช่น somchai หรือ 1100500123456">
+                <input type="text" id="citizen-login-user" class="w-full text-xs rounded-xl border border-slate-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" placeholder="กรอกชื่อผู้ใช้งาน หรือ เลขบัตรประชาชน" autocomplete="off">
               </div>
 
               <div>
                 <label class="block text-xs font-medium text-slate-700 mb-1">รหัสผ่าน</label>
-                <input type="password" id="citizen-login-pass" value="1234" class="w-full text-xs rounded-xl border border-slate-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" placeholder="รหัสผ่าน">
+                <input type="password" id="citizen-login-pass" class="w-full text-xs rounded-xl border border-slate-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" placeholder="กรอกรหัสผ่าน" autocomplete="off">
               </div>
 
               <button type="button" onclick="handleCitizenLogin()" class="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold shadow-sm transition flex items-center justify-center space-x-2 group">
@@ -323,12 +323,12 @@
             <div class="space-y-3.5">
               <div>
                 <label class="block text-xs font-medium text-slate-700 mb-1">รหัสเจ้าหน้าที่ / อีเมลองค์กร</label>
-                <input type="text" id="staff-login-user" value="admin_bma" class="w-full text-xs rounded-xl border border-slate-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" placeholder="เช่น admin_bma หรือ mechanic_jack">
+                <input type="text" id="staff-login-user" class="w-full text-xs rounded-xl border border-slate-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" placeholder="กรอกรหัสเจ้าหน้าที่ หรือ อีเมลองค์กร" autocomplete="off">
               </div>
 
               <div>
                 <label class="block text-xs font-medium text-slate-700 mb-1">รหัสผ่าน</label>
-                <input type="password" id="staff-login-pass" value="1234" class="w-full text-xs rounded-xl border border-slate-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" placeholder="รหัสผ่าน">
+                <input type="password" id="staff-login-pass" class="w-full text-xs rounded-xl border border-slate-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" placeholder="กรอกรหัสผ่าน" autocomplete="off">
               </div>
 
               <button type="button" onclick="handleStaffLogin()" class="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-semibold shadow-sm transition flex items-center justify-center space-x-2 group">
@@ -554,13 +554,15 @@
             <label class="text-xs text-slate-500 whitespace-nowrap">กรองสถานะ:</label>
             <select id="authority-filter-status" onchange="loadAuthorityCases()" class="text-xs bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5 focus:ring-2 focus:ring-blue-500 font-medium">
               <option value="">ทั้งหมดทุกสถานะ</option>
-              <option value="รอตรวจสอบ">รอตรวจสอบ (Pending)</option>
+              <option value="รอตรวจสอบ">รอตรวจสอบ (Pending Review)</option>
+              <option value="เคสถูกสร้าง">เคสถูกสร้าง (Case Created)</option>
               <option value="มอบหมายงานแล้ว">มอบหมายงานแล้ว (Assigned)</option>
               <option value="กำลังดำเนินการซ่อม">กำลังดำเนินการซ่อม (In Progress)</option>
               <option value="รอตรวจรับงาน">รอตรวจรับงาน (Under Inspection)</option>
               <option value="สั่งแก้ไขงาน">สั่งแก้ไขงาน (Revision)</option>
               <option value="ปิดงานซ่อมบำรุง">ปิดงานซ่อมบำรุงแล้ว (Closed)</option>
               <option value="ปฏิเสธเคส">ปฏิเสธเคส (Rejected)</option>
+              <option value="ยกเลิกเคส">ยกเลิกเคส (Cancelled)</option>
             </select>
           </div>
         </div>
@@ -594,7 +596,11 @@
     <!-- ============================================================== -->
     <!-- VIEW 3: TECHNICIAN VIEW (ทีมช่างซ่อมบำรุง) -->
     <!-- ============================================================== -->
-    <div id="view-technician" class="space-y-5 hidden">
+    <!-- ============================================================== -->
+    <!-- VIEW 3: TECHNICIAN VIEW (ทีมช่างซ่อมบำรุง) -->
+    <!-- ============================================================== -->
+    <div id="view-technician" class="space-y-4 hidden">
+      <!-- Banner Header -->
       <div class="bg-slate-900 rounded-2xl p-5 text-white shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
         <div>
           <span class="bg-slate-800 text-slate-300 text-[10px] px-2 py-0.5 rounded font-medium border border-slate-700">ทีมช่างซ่อมบำรุงภาคสนาม</span>
@@ -603,6 +609,30 @@
         </div>
         <button onclick="loadTechnicianOrders()" class="bg-slate-800 hover:bg-slate-700 text-white text-xs px-3 py-1.5 rounded-lg border border-slate-700 flex items-center">
           <i class="fa-solid fa-arrows-rotate mr-1.5"></i> รีเฟรชใบงาน
+        </button>
+      </div>
+
+
+
+      <!-- แถบปุ่มกรองสถานะใบงานซ่อม (Filter Tabs) -->
+      <div class="flex flex-wrap items-center gap-1.5 pt-1" id="technician-filter-container">
+        <button onclick="setTechnicianFilter('')" id="tech-filter-all" class="tech-filter-pill px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-900 text-white shadow-xs">
+          ทั้งหมด (<span id="count-wo-all">0</span>)
+        </button>
+        <button onclick="setTechnicianFilter('มอบหมายแล้ว')" id="tech-filter-assigned" class="tech-filter-pill px-3 py-1.5 rounded-xl text-xs font-semibold bg-white border border-slate-200 text-slate-700 hover:bg-slate-50">
+          มอบหมายแล้ว (<span id="count-wo-assigned">0</span>)
+        </button>
+        <button onclick="setTechnicianFilter('กำลังดำเนินการซ่อม')" id="tech-filter-repairing" class="tech-filter-pill px-3 py-1.5 rounded-xl text-xs font-semibold bg-white border border-slate-200 text-slate-700 hover:bg-slate-50">
+          กำลังซ่อม (<span id="count-wo-repairing">0</span>)
+        </button>
+        <button onclick="setTechnicianFilter('สั่งแก้ไขงาน')" id="tech-filter-revision" class="tech-filter-pill px-3 py-1.5 rounded-xl text-xs font-semibold bg-white border border-slate-200 text-slate-700 hover:bg-slate-50">
+          สั่งแก้ไขงาน (<span id="count-wo-revision">0</span>)
+        </button>
+        <button onclick="setTechnicianFilter('ส่งตรวจรับงาน')" id="tech-filter-inspecting" class="tech-filter-pill px-3 py-1.5 rounded-xl text-xs font-semibold bg-white border border-slate-200 text-slate-700 hover:bg-slate-50">
+          ส่งตรวจรับ (<span id="count-wo-inspecting">0</span>)
+        </button>
+        <button onclick="setTechnicianFilter('ปิดงานซ่อมบำรุงแล้ว')" id="tech-filter-closed" class="tech-filter-pill px-3 py-1.5 rounded-xl text-xs font-semibold bg-white border border-slate-200 text-slate-700 hover:bg-slate-50">
+          ปิดงานแล้ว (<span id="count-wo-closed">0</span>)
         </button>
       </div>
 
@@ -1780,11 +1810,20 @@
         if (currentRole === 'authority') {
           if (data.status === 'รอตรวจสอบ') {
             actionsBox.innerHTML = `
-              <button onclick="closeModal('modal-case-detail'); openApproveModal('${data.case_id}', ${data.ai_report ? data.ai_report.estimated_budget : 15000})" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-medium">
-                อนุมัติเปิดงาน
+              <button onclick="closeModal('modal-case-detail'); approveAndCreateCase('${data.case_id}')" class="px-3 py-1.5 bg-sky-600 hover:bg-sky-700 text-white rounded-xl text-xs font-medium">
+                <i class="fa-solid fa-check mr-1"></i> อนุมัติเคส (เคสถูกสร้าง)
               </button>
               <button onclick="closeModal('modal-case-detail'); openRejectModal('${data.case_id}')" class="px-3 py-1.5 bg-rose-100 hover:bg-rose-200 text-rose-700 rounded-xl text-xs font-medium">
-                ปฏิเสธเคส
+                <i class="fa-solid fa-ban mr-1"></i> ปฏิเสธเคส
+              </button>
+            `;
+          } else if (data.status === 'เคสถูกสร้าง') {
+            actionsBox.innerHTML = `
+              <button onclick="closeModal('modal-case-detail'); openApproveModal('${data.case_id}', ${data.ai_report ? data.ai_report.estimated_budget : 15000})" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-medium">
+                <i class="fa-solid fa-user-plus mr-1"></i> มอบหมายช่าง & ออกใบงาน
+              </button>
+              <button onclick="closeModal('modal-case-detail'); authorityCancelCase('${data.case_id}')" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-medium border border-slate-300">
+                <i class="fa-solid fa-xmark mr-1"></i> ยกเลิกเคส
               </button>
             `;
           } else if (data.status === 'รอตรวจรับงาน' && data.work_order) {
@@ -2185,11 +2224,18 @@
                 </button>
 
                 ${c.status === 'รอตรวจสอบ' ? `
-                  <button onclick="openApproveModal('${c.case_id}', ${c.estimated_budget})" class="px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-[11px] font-medium shadow-sm">
-                    อนุมัติ
+                  <button onclick="approveAndCreateCase('${c.case_id}')" class="px-2 py-1 bg-sky-600 hover:bg-sky-700 text-white rounded-md text-[11px] font-medium shadow-sm" title="อนุมัติเคส (เปลี่ยนสถานะเป็น เคสถูกสร้าง)">
+                    <i class="fa-solid fa-check mr-0.5"></i> อนุมัติ
                   </button>
-                  <button onclick="openRejectModal('${c.case_id}')" class="px-2 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-md text-[11px] font-medium border border-rose-200">
+                  <button onclick="openRejectModal('${c.case_id}')" class="px-2 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-md text-[11px] font-medium border border-rose-200" title="ปฏิเสธคำขอ">
                     ปฏิเสธ
+                  </button>
+                ` : c.status === 'เคสถูกสร้าง' ? `
+                  <button onclick="openApproveModal('${c.case_id}', ${c.estimated_budget})" class="px-2 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md text-[11px] font-medium shadow-sm" title="ออกใบงานและมอบหมายช่าง">
+                    <i class="fa-solid fa-user-plus mr-0.5"></i> มอบหมายช่าง
+                  </button>
+                  <button onclick="authorityCancelCase('${c.case_id}')" class="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-md text-[11px] font-medium border border-slate-300" title="ยกเลิกเคส (กรณีไม่พบช่างพร้อมปฏิบัติงาน)">
+                    ยกเลิก
                   </button>
                 ` : c.status === 'รอตรวจรับงาน' ? `
                   <button onclick="openInspectModal('${c.work_order_id}', '${c.image_url}', '${c.after_image_url}')" class="px-2 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-md text-[11px] font-medium shadow-sm">
@@ -2242,11 +2288,18 @@
                   </button>
 
                   ${c.status === 'รอตรวจสอบ' ? `
-                    <button onclick="openApproveModal('${c.case_id}', ${c.estimated_budget})" class="flex-1 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-lg text-xs font-medium shadow-xs">
-                      อนุมัติ
+                    <button onclick="approveAndCreateCase('${c.case_id}')" class="flex-1 py-2 bg-sky-600 hover:bg-sky-700 active:bg-sky-800 text-white rounded-lg text-xs font-medium shadow-xs">
+                      <i class="fa-solid fa-check mr-1"></i> อนุมัติเคส
                     </button>
                     <button onclick="openRejectModal('${c.case_id}')" class="py-2 px-3 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-lg text-xs font-medium border border-rose-200">
                       ปฏิเสธ
+                    </button>
+                  ` : c.status === 'เคสถูกสร้าง' ? `
+                    <button onclick="openApproveModal('${c.case_id}', ${c.estimated_budget})" class="flex-1 py-2 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white rounded-lg text-xs font-medium shadow-xs">
+                      <i class="fa-solid fa-user-plus mr-1"></i> มอบหมายช่าง
+                    </button>
+                    <button onclick="authorityCancelCase('${c.case_id}')" class="py-2 px-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-medium border border-slate-300">
+                      ยกเลิก
                     </button>
                   ` : c.status === 'รอตรวจรับงาน' ? `
                     <button onclick="openInspectModal('${c.work_order_id}', '${c.image_url}', '${c.after_image_url}')" class="flex-1 py-2 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white rounded-lg text-xs font-medium shadow-xs">
@@ -2297,66 +2350,126 @@
     // ----------------------------------------------------
     // TECHNICIAN VIEW LOGIC
     // ----------------------------------------------------
+    let currentTechnicianOrders = [];
+    let currentTechnicianFilter = '';
+
+    function setTechnicianFilter(status) {
+      currentTechnicianFilter = status;
+      const filterMap = {
+        '': 'tech-filter-all',
+        'มอบหมายแล้ว': 'tech-filter-assigned',
+        'กำลังดำเนินการซ่อม': 'tech-filter-repairing',
+        'สั่งแก้ไขงาน': 'tech-filter-revision',
+        'ส่งตรวจรับงาน': 'tech-filter-inspecting',
+        'ปิดงานซ่อมบำรุงแล้ว': 'tech-filter-closed'
+      };
+      Object.keys(filterMap).forEach(key => {
+        const btn = document.getElementById(filterMap[key]);
+        if (btn) {
+          if (key === status) {
+            btn.className = 'tech-filter-pill px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-900 text-white shadow-xs';
+          } else {
+            btn.className = 'tech-filter-pill px-3 py-1.5 rounded-xl text-xs font-semibold bg-white border border-slate-200 text-slate-700 hover:bg-slate-50';
+          }
+        }
+      });
+      renderTechnicianOrders();
+    }
+
+    function updateTechnicianCounts(orders) {
+      const countAll = orders.length;
+      const countAssigned = orders.filter(w => w.status === 'มอบหมายแล้ว').length;
+      const countRepairing = orders.filter(w => w.status === 'กำลังดำเนินการซ่อม').length;
+      const countRevision = orders.filter(w => w.status === 'สั่งแก้ไขงาน').length;
+      const countInspecting = orders.filter(w => w.status === 'ส่งตรวจรับงาน').length;
+      const countClosed = orders.filter(w => w.status === 'ปิดงานซ่อมบำรุงแล้ว').length;
+
+      if (document.getElementById('count-wo-all')) document.getElementById('count-wo-all').innerText = countAll;
+      if (document.getElementById('count-wo-assigned')) document.getElementById('count-wo-assigned').innerText = countAssigned;
+      if (document.getElementById('count-wo-repairing')) document.getElementById('count-wo-repairing').innerText = countRepairing;
+      if (document.getElementById('count-wo-revision')) document.getElementById('count-wo-revision').innerText = countRevision;
+      if (document.getElementById('count-wo-inspecting')) document.getElementById('count-wo-inspecting').innerText = countInspecting;
+      if (document.getElementById('count-wo-closed')) document.getElementById('count-wo-closed').innerText = countClosed;
+    }
+
+    function renderTechnicianOrders() {
+      const container = document.getElementById('technician-orders-list');
+      if (!container) return;
+
+      let filtered = currentTechnicianOrders;
+      if (currentTechnicianFilter) {
+        filtered = filtered.filter(w => w.status === currentTechnicianFilter);
+      }
+
+      if (filtered.length === 0) {
+        container.innerHTML = `<div class="col-span-3 text-center py-10 text-slate-400 bg-white rounded-xl border border-slate-200 text-xs">ไม่พบใบงานในสถานะนี้</div>`;
+        return;
+      }
+
+      container.innerHTML = filtered.map(w => `
+        <div class="bg-white rounded-xl p-4 border border-slate-200 shadow-sm flex flex-col justify-between">
+          <div class="space-y-2.5">
+            <div class="flex justify-between items-center">
+              <span class="text-xs font-bold text-slate-800">${w.work_order_id}</span>
+              ${getStatusBadge(w.status)}
+            </div>
+            <h4 class="text-xs font-bold text-slate-900">${w.location_address}</h4>
+            <p class="text-xs text-slate-600 line-clamp-2">${w.description}</p>
+            
+            <div class="grid grid-cols-2 gap-2 text-[11px] bg-slate-50 p-2 rounded-lg border">
+              <div><span class="text-slate-400 block text-[10px]">ประเภท:</span> <strong>${w.damage_type || '-'}</strong></div>
+              <div><span class="text-slate-400 block text-[10px]">งบอนุมัติ:</span> <strong class="text-emerald-700">฿${Number(w.approved_budget).toLocaleString()}</strong></div>
+            </div>
+
+            ${w.status === 'สั่งแก้ไขงาน' && w.inspection_notes ? `
+              <div class="bg-amber-50 border border-amber-200 rounded-lg p-2 text-[11px] text-amber-900">
+                <div class="font-bold flex items-center text-amber-800"><i class="fa-solid fa-triangle-exclamation mr-1 text-amber-600"></i> ข้อสั่งการแก้ไขจากหน่วยงาน:</div>
+                <div class="mt-0.5 text-slate-700">${w.inspection_notes}</div>
+              </div>
+            ` : ''}
+
+            <div class="flex justify-between items-center pt-1 text-[11px]">
+              <a href="https://www.google.com/maps?q=${w.latitude},${w.longitude}" target="_blank" class="text-blue-600 hover:underline flex items-center">
+                <i class="fa-solid fa-location-arrow mr-1"></i> นำทาง
+              </a>
+              <button onclick="viewCaseDetails('${w.case_id}')" class="text-slate-600 hover:underline">
+                ดูรายละเอียดเคส
+              </button>
+            </div>
+          </div>
+
+          <div class="pt-3 border-t border-slate-100 mt-3">
+            ${w.status === 'มอบหมายแล้ว' ? `
+              <button onclick="startWork('${w.work_order_id}')" class="w-full py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-medium flex items-center justify-center gap-1.5 shadow-sm">
+                <i class="fa-solid fa-play text-[10px]"></i> เริ่มลงพื้นที่ปฏิบัติงาน
+              </button>
+            ` : w.status === 'กำลังดำเนินการซ่อม' || w.status === 'สั่งแก้ไขงาน' ? `
+              <button onclick="openSubmitWorkModal('${w.work_order_id}')" class="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-medium flex items-center justify-center gap-1.5 shadow-sm">
+                <i class="fa-solid fa-camera mr-1"></i> ส่งผลงานซ่อมเสร็จ
+              </button>
+            ` : w.status === 'ส่งตรวจรับงาน' ? `
+              <div class="text-center text-xs text-purple-700 bg-purple-50 py-1.5 rounded-lg border border-purple-200 font-medium flex items-center justify-center gap-1.5">
+                <i class="fa-solid fa-hourglass-half"></i> ส่งผลงานแล้ว รอเจ้าหน้าที่ตรวจรับ
+              </div>
+            ` : `
+              <div class="text-center text-xs text-emerald-700 bg-emerald-50 py-1.5 rounded-lg border border-emerald-200 font-medium flex items-center justify-center gap-1.5">
+                <i class="fa-solid fa-circle-check"></i> ปิดงานซ่อมบำรุงเสร็จสมบูรณ์
+              </div>
+            `}
+          </div>
+        </div>
+      `).join('');
+    }
+
     async function loadTechnicianOrders() {
       const container = document.getElementById('technician-orders-list');
       if (!currentUser) return;
       try {
         const res = await fetch(`/api/work-orders?technician_id=${currentUser.user_id}`);
         const orders = await res.json();
-
-        if (orders.length === 0) {
-          container.innerHTML = `<div class="col-span-3 text-center py-10 text-slate-400 bg-white rounded-xl border">ไม่มีใบงานค้างอยู่</div>`;
-          return;
-        }
-
-        container.innerHTML = orders.map(w => `
-          <div class="bg-white rounded-xl p-4 border border-slate-200 shadow-sm flex flex-col justify-between">
-            <div class="space-y-2.5">
-              <div class="flex justify-between items-center">
-                <span class="text-xs font-bold text-slate-800">${w.work_order_id}</span>
-                ${getStatusBadge(w.status)}
-              </div>
-              <h4 class="text-xs font-bold text-slate-900">${w.location_address}</h4>
-              <p class="text-xs text-slate-600 line-clamp-2">${w.description}</p>
-              
-              <div class="grid grid-cols-2 gap-2 text-[11px] bg-slate-50 p-2 rounded-lg border">
-                <div><span class="text-slate-400 block text-[10px]">ประเภท:</span> <strong>${w.damage_type || '-'}</strong></div>
-                <div><span class="text-slate-400 block text-[10px]">งบอนุมัติ:</span> <strong class="text-emerald-700">฿${Number(w.approved_budget).toLocaleString()}</strong></div>
-              </div>
-
-              ${w.status === 'สั่งแก้ไขงาน' && w.inspection_notes ? `
-                <div class="bg-amber-50 border border-amber-200 rounded-lg p-2 text-[11px] text-amber-900">
-                  <div class="font-bold flex items-center text-amber-800"><i class="fa-solid fa-triangle-exclamation mr-1 text-amber-600"></i> ข้อสั่งการแก้ไขจากหน่วยงาน:</div>
-                  <div class="mt-0.5 text-slate-700">${w.inspection_notes}</div>
-                </div>
-              ` : ''}
-
-              <div class="flex justify-between items-center pt-1 text-[11px]">
-                <a href="https://www.google.com/maps?q=${w.latitude},${w.longitude}" target="_blank" class="text-blue-600 hover:underline flex items-center">
-                  <i class="fa-solid fa-location-arrow mr-1"></i> นำทาง
-                </a>
-                <button onclick="viewCaseDetails('${w.case_id}')" class="text-slate-600 hover:underline">
-                  ดูรายละเอียดเคส
-                </button>
-              </div>
-            </div>
-
-            <div class="pt-3 border-t border-slate-100 mt-3">
-              ${w.status === 'มอบหมายแล้ว' ? `
-                <button onclick="startWork('${w.work_order_id}')" class="w-full py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-medium">
-                  เริ่มลงพื้นที่ปฏิบัติงาน
-                </button>
-              ` : w.status === 'กำลังดำเนินการซ่อม' || w.status === 'สั่งแก้ไขงาน' ? `
-                <button onclick="openSubmitWorkModal('${w.work_order_id}')" class="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-medium">
-                  ส่งผลงานซ่อมเสร็จ
-                </button>
-              ` : `
-                <div class="text-center text-xs text-slate-400 py-1">ส่งผลงานแล้ว รอตรวจรับ</div>
-              `}
-            </div>
-          </div>
-        `).join('');
-
+        currentTechnicianOrders = orders || [];
+        updateTechnicianCounts(currentTechnicianOrders);
+        renderTechnicianOrders();
       } catch (err) {
         container.innerHTML = `<div class="text-rose-500 text-xs py-4">โหลดข้อมูลล้มเหลว</div>`;
       }
@@ -2417,6 +2530,40 @@
           closeModal('modal-approve');
           loadAuthorityCases();
           loadDashboardStats();
+        }
+      } catch (e) {
+        alert(e.message);
+      }
+    }
+
+    async function approveAndCreateCase(caseId) {
+      if (!confirm(`ยืนยันการอนุมัติเคส ${caseId} ใช่หรือไม่?\n(สถานะจะเปลี่ยนเป็น "เคสถูกสร้าง" ตาม State Machine Diagram)`)) return;
+      try {
+        const res = await fetch(`/api/cases/${caseId}/approve-create`, { method: "POST" });
+        const data = await res.json();
+        if (data.status === "success") {
+          alert("✅ " + data.message);
+          loadAuthorityCases();
+          loadDashboardStats();
+        } else {
+          alert("❌ " + (data.detail || data.message));
+        }
+      } catch (e) {
+        alert(e.message);
+      }
+    }
+
+    async function authorityCancelCase(caseId) {
+      if (!confirm(`ยืนยันการยกเลิกเคส ${caseId} ใช่หรือไม่?\n(กรณีไม่พบช่างที่พร้อมปฏิบัติงาน ตาม State Machine Diagram)`)) return;
+      try {
+        const res = await fetch(`/api/cases/${caseId}/authority-cancel`, { method: "POST" });
+        const data = await res.json();
+        if (data.status === "success") {
+          alert("✅ " + data.message);
+          loadAuthorityCases();
+          loadDashboardStats();
+        } else {
+          alert("❌ " + (data.detail || data.message));
         }
       } catch (e) {
         alert(e.message);
@@ -2601,6 +2748,7 @@
     // Helper Badges (Covering All 8 States from State Machine)
     function getStatusBadge(status) {
       if (status === 'รอตรวจสอบ') return `<span class="status-badge status-pending"><i class="fa-solid fa-clock mr-1"></i>รอตรวจสอบ</span>`;
+      if (status === 'เคสถูกสร้าง') return `<span class="status-badge bg-sky-100 text-sky-800 border border-sky-300 font-medium"><i class="fa-solid fa-file-circle-check mr-1 text-sky-600"></i>เคสถูกสร้าง</span>`;
       if (status === 'มอบหมายงานแล้ว') return `<span class="status-badge status-assigned"><i class="fa-solid fa-user-check mr-1"></i>มอบหมายงานแล้ว</span>`;
       if (status === 'กำลังดำเนินการซ่อม') return `<span class="status-badge status-repairing"><i class="fa-solid fa-wrench mr-1"></i>กำลังดำเนินการซ่อม</span>`;
       if (status === 'รอตรวจรับงาน') return `<span class="status-badge status-inspecting"><i class="fa-solid fa-magnifying-glass mr-1"></i>รอตรวจรับงาน</span>`;
@@ -2630,25 +2778,56 @@
 
       if (type === 'state') {
         content.innerHTML = `
-          <div class="space-y-3">
-            <h4 class="font-bold text-sm text-slate-900">State Machine & Statechart Diagram (ตรวจสอบครบทุกสถานะตามเอกสาร SA หน้า 9-10)</h4>
-            <div class="p-3 bg-slate-50 border rounded-xl space-y-2">
-              <strong class="text-slate-800">1. วงจรชีวิตของเคสแจ้งซ่อม (Case Lifecycle States):</strong>
+          <div class="space-y-4">
+            <h4 class="font-bold text-sm text-slate-900 flex items-center gap-1.5">
+              <i class="fa-solid fa-diagram-project text-blue-600"></i>
+              State Machine & Statechart Diagram (ตรวจสอบครบทุกสถานะตามเอกสาร SA)
+            </h4>
+            
+            <!-- 1. State Machine ของเคสแจ้งซ่อม -->
+            <div class="p-3.5 bg-slate-50 border rounded-xl space-y-2.5">
+              <div class="flex items-center justify-between">
+                <strong class="text-slate-800 text-xs">1. วงจรชีวิตของเคสแจ้งซ่อม (Case Lifecycle States):</strong>
+                <span class="text-[10px] text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200 font-medium">8 สถานะตาม Statechart</span>
+              </div>
               <div class="flex flex-wrap items-center gap-1.5 py-1 text-[11px]">
-                <span class="px-2 py-0.5 rounded bg-amber-100 text-amber-800 font-medium">รอตรวจสอบ</span>
-                <span>➔ (อนุมัติ) ➔</span>
-                <span class="px-2 py-0.5 rounded bg-indigo-100 text-indigo-800 font-medium">มอบหมายงานแล้ว</span>
-                <span>➔ (ลงพื้นที่) ➔</span>
-                <span class="px-2 py-0.5 rounded bg-orange-100 text-orange-800 font-medium">กำลังดำเนินการซ่อม</span>
-                <span>➔ (ส่งงาน) ➔</span>
-                <span class="px-2 py-0.5 rounded bg-purple-100 text-purple-800 font-medium">รอตรวจรับงาน</span>
-                <span>➔ (ผ่าน) ➔</span>
+                <span class="px-2 py-0.5 rounded bg-amber-100 text-amber-800 font-medium">รอตรวจสอบเคส</span>
+                <span>➔ (อนุมัติเคส) ➔</span>
+                <span class="px-2 py-0.5 rounded bg-sky-100 text-sky-800 font-medium border border-sky-300">เคสถูกสร้าง</span>
+                <span>➔ (มอบหมายงานสำเร็จ) ➔</span>
+                <span class="px-2 py-0.5 rounded bg-indigo-100 text-indigo-800 font-medium">มอบหมายงานช่าง</span>
+                <span>➔ (ช่างรับงานลงพื้นที่) ➔</span>
+                <span class="px-2 py-0.5 rounded bg-orange-100 text-orange-800 font-medium">ดำเนินงานซ่อม</span>
+                <span>➔ (ส่งผลงานหลังซ่อม) ➔</span>
+                <span class="px-2 py-0.5 rounded bg-purple-100 text-purple-800 font-medium">รอตรวจงาน</span>
+                <span>➔ (ผ่านเกณฑ์) ➔</span>
                 <span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-medium">ปิดงานซ่อมบำรุง (Closed)</span>
               </div>
-              <div class="pt-1 text-slate-600 text-[11px] space-y-1">
-                <p>• <strong>ไม่อนุมัติ:</strong> จาก [รอตรวจสอบ] ➔ เปลี่ยนเป็น <span class="text-rose-600 font-semibold">[ปฏิเสธเคส (Rejected)]</span></p>
-                <p>• <strong>ไม่ผ่านเกณฑ์:</strong> จาก [รอตรวจรับงาน] ➔ วนกลับมาที่ <span class="text-amber-700 font-semibold">[สั่งแก้ไขงาน / กำลังดำเนินการซ่อม]</span></p>
-                <p>• <strong>ยกเลิกคำสั่ง:</strong> กรณีไม่มีช่างพร้อมปฏิบัติงาน ➔ เปลี่ยนเป็น <span class="text-slate-600 font-semibold">[ยกเลิกเคส]</span></p>
+              <div class="pt-1 text-slate-600 text-[11px] space-y-1 bg-white p-2.5 rounded-lg border border-slate-200/80">
+                <p>• <strong>ไม่อนุมัติ:</strong> จาก [รอตรวจสอบเคส] ➔ เปลี่ยนเป็น <span class="text-rose-600 font-semibold">[Rejected / ปฏิเสธเคส]</span></p>
+                <p>• <strong>ยกเลิกเคส:</strong> กรณีไม่พบช่างที่พร้อมปฏิบัติงาน ➔ เปลี่ยนเป็น <span class="text-slate-600 font-semibold">[รหัสเคสถูกยกเลิก / ยกเลิกเคส]</span></p>
+                <p>• <strong>ไม่ผ่านเกณฑ์:</strong> จาก [รอตรวจงาน] ➔ วนกลับมาที่ <span class="text-amber-700 font-semibold">[สั่งแก้ไขงาน / ดำเนินงานซ่อม]</span></p>
+              </div>
+            </div>
+
+            <!-- 2. State Machine ของใบงานซ่อมบำรุง -->
+            <div class="p-3.5 bg-blue-50/50 border border-blue-200 rounded-xl space-y-2.5">
+              <div class="flex items-center justify-between">
+                <strong class="text-slate-800 text-xs">2. วงจรชีวิตของใบงานซ่อม (Repair Work Order Lifecycle):</strong>
+                <span class="text-[10px] text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-200 font-medium">ออกใบงานเมื่อ "เคสถูกสร้าง"</span>
+              </div>
+              <div class="flex flex-wrap items-center gap-1.5 py-1 text-[11px]">
+                <span class="px-2 py-0.5 rounded bg-indigo-100 text-indigo-800 font-medium">1. ออกใบงานแล้ว / มอบหมายแล้ว</span>
+                <span>➔ (ช่างกดเริ่มงาน) ➔</span>
+                <span class="px-2 py-0.5 rounded bg-orange-100 text-orange-800 font-medium">2. กำลังดำเนินการซ่อม</span>
+                <span>➔ (แนบรูปหลังซ่อม) ➔</span>
+                <span class="px-2 py-0.5 rounded bg-purple-100 text-purple-800 font-medium">3. ส่งตรวจรับงาน</span>
+                <span>➔ (ตรวจรับผ่าน) ➔</span>
+                <span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-medium">4. ปิดงานซ่อมบำรุงแล้ว (Completed)</span>
+              </div>
+              <div class="pt-1 text-slate-600 text-[11px] bg-white p-2.5 rounded-lg border border-blue-100 space-y-1">
+                <p>• <strong>ข้อสั่งการแก้ไข:</strong> หากกรรมการตรวจไม่ผ่าน ➔ เปลี่ยนสถานะใบงานเป็น <span class="text-amber-700 font-semibold">[สั่งแก้ไขงาน]</span> แล้วช่างต้องลงพื้นที่ซ่อมใหม่</p>
+                <p>• <strong>ความสัมพันธ์ (Mapping):</strong> 1 เคสแจ้งซ่อม จะถูกสร้าง 1 ใบงานซ่อมบำรุง (1:1 Relation) โดยทั้งสองส่วนจะอัปเดตสถานะควบคู่กัน</p>
               </div>
             </div>
           </div>
