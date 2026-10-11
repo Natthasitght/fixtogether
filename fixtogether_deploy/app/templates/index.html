@@ -271,12 +271,6 @@
                 <span>เข้าสู่ระบบประชาชน</span>
                 <i class="fa-solid fa-arrow-right text-xs transition-transform duration-200 group-hover:translate-x-1"></i>
               </button>
-
-              <div class="pt-2 border-t border-slate-100 text-center">
-                <button type="button" onclick="quickLoginDemo('somchai')" class="text-[11px] text-blue-600 hover:text-blue-800 font-medium inline-flex items-center">
-                  <i class="fa-solid fa-bolt text-amber-500 mr-1.5"></i> ทดลองเข้าสู่ระบบทันที (นายสมชาย - ประชาชน)
-                </button>
-              </div>
             </div>
 
             <!-- Citizen Register Form with OTP Flow -->
@@ -335,19 +329,6 @@
                 <span>เข้าสู่ระบบเจ้าหน้าที่</span>
                 <i class="fa-solid fa-arrow-right text-xs transition-transform duration-200 group-hover:translate-x-1"></i>
               </button>
-
-              <!-- Quick Demo Shortcut for Staff -->
-              <div class="pt-2 border-t border-slate-100 space-y-1.5 text-center">
-                <div class="text-[10px] text-slate-400">เข้าสู่ระบบด่วนสำหรับเดโม:</div>
-                <div class="flex gap-2">
-                  <button type="button" onclick="quickLoginDemo('admin_bma')" class="flex-1 text-[11px] py-1.5 px-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg border border-slate-200 transition font-medium">
-                    🏛️ เจ้าหน้าที่เขต (วิภาดา)
-                  </button>
-                  <button type="button" onclick="quickLoginDemo('mechanic_jack')" class="flex-1 text-[11px] py-1.5 px-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg border border-slate-200 transition font-medium">
-                    🔧 ทีมช่าง (เอกชัย)
-                  </button>
-                </div>
-              </div>
             </div>
           </div>
 
@@ -674,6 +655,29 @@
   <!-- ======================================================= -->
   <!-- MODALS -->
   <!-- ======================================================= -->
+
+  <!-- MODAL: GLOBAL CUSTOM CONFIRM DIALOG (แทนที่ confirm ของเบราว์เซอร์) -->
+  <div id="modal-confirm-dialog" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[9999] hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-sm w-full p-5 shadow-2xl border border-slate-200 space-y-4">
+      <div class="flex items-start gap-3">
+        <div id="confirm-modal-icon-bg" class="w-10 h-10 rounded-xl bg-sky-100 text-sky-600 flex items-center justify-center flex-shrink-0 text-lg">
+          <i id="confirm-modal-icon" class="fa-solid fa-circle-question"></i>
+        </div>
+        <div class="flex-1 min-w-0">
+          <h3 id="confirm-modal-title" class="text-sm font-bold text-slate-900">ยืนยันการดำเนินการ</h3>
+          <p id="confirm-modal-message" class="text-xs text-slate-600 mt-1.5 leading-relaxed whitespace-pre-line"></p>
+        </div>
+      </div>
+      <div class="flex space-x-2 pt-2">
+        <button type="button" id="confirm-modal-btn-cancel" class="w-1/2 py-2 px-3 border border-slate-300 text-slate-700 hover:bg-slate-50 rounded-xl text-xs font-medium transition active:scale-95">
+          ยกเลิก
+        </button>
+        <button type="button" id="confirm-modal-btn-ok" class="w-1/2 py-2 px-3 bg-sky-600 hover:bg-sky-700 text-white rounded-xl text-xs font-semibold shadow-sm transition active:scale-95">
+          ยืนยัน
+        </button>
+      </div>
+    </div>
+  </div>
 
   <!-- MODAL: FULL CASE DETAILS (ดูรายละเอียดแต่ละเคสตามที่ขอ) -->
   <div id="modal-case-detail" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
@@ -1153,6 +1157,68 @@
       }, 3500);
     }
 
+    // Custom In-App Confirm Dialog (แทนที่ window.confirm เดิม)
+    function showConfirmDialog({
+      title = "ยืนยันการดำเนินการ",
+      message = "คุณต้องการดำเนินการขั้นตอนนี้ใช่หรือไม่?",
+      confirmText = "ยืนยัน",
+      cancelText = "ยกเลิก",
+      type = "primary", // 'primary', 'danger', 'success'
+      icon = null
+    } = {}) {
+      return new Promise((resolve) => {
+        const modal = document.getElementById('modal-confirm-dialog');
+        const titleEl = document.getElementById('confirm-modal-title');
+        const msgEl = document.getElementById('confirm-modal-message');
+        const iconBg = document.getElementById('confirm-modal-icon-bg');
+        const iconEl = document.getElementById('confirm-modal-icon');
+        const okBtn = document.getElementById('confirm-modal-btn-ok');
+        const cancelBtn = document.getElementById('confirm-modal-btn-cancel');
+
+        titleEl.innerText = title;
+        msgEl.innerText = message;
+        okBtn.innerText = confirmText;
+        cancelBtn.innerText = cancelText;
+
+        if (type === 'danger') {
+          iconBg.className = 'w-10 h-10 rounded-xl bg-rose-100 text-rose-600 flex items-center justify-center flex-shrink-0 text-lg';
+          iconEl.className = icon || 'fa-solid fa-triangle-exclamation';
+          okBtn.className = 'w-1/2 py-2 px-3 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-semibold shadow-sm transition active:scale-95';
+        } else if (type === 'success') {
+          iconBg.className = 'w-10 h-10 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center flex-shrink-0 text-lg';
+          iconEl.className = icon || 'fa-solid fa-circle-check';
+          okBtn.className = 'w-1/2 py-2 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold shadow-sm transition active:scale-95';
+        } else {
+          iconBg.className = 'w-10 h-10 rounded-xl bg-sky-100 text-sky-600 flex items-center justify-center flex-shrink-0 text-lg';
+          iconEl.className = icon || 'fa-solid fa-circle-question';
+          okBtn.className = 'w-1/2 py-2 px-3 bg-sky-600 hover:bg-sky-700 text-white rounded-xl text-xs font-semibold shadow-sm transition active:scale-95';
+        }
+
+        const handleOk = () => {
+          cleanup();
+          resolve(true);
+        };
+        const handleCancel = () => {
+          cleanup();
+          resolve(false);
+        };
+        const handleBackdrop = (e) => {
+          if (e.target === modal) handleCancel();
+        };
+        const cleanup = () => {
+          okBtn.removeEventListener('click', handleOk);
+          cancelBtn.removeEventListener('click', handleCancel);
+          modal.removeEventListener('click', handleBackdrop);
+          modal.classList.add('hidden');
+        };
+
+        okBtn.addEventListener('click', handleOk);
+        cancelBtn.addEventListener('click', handleCancel);
+        modal.addEventListener('click', handleBackdrop);
+        modal.classList.remove('hidden');
+      });
+    }
+
     document.addEventListener("DOMContentLoaded", () => {
       goToHome();
       loadTechniciansDropdown();
@@ -1385,14 +1451,14 @@
     async function handleCitizenLogin() {
       const u = document.getElementById('citizen-login-user').value.trim();
       const p = document.getElementById('citizen-login-pass').value.trim();
-      if (!u || !p) { alert("กรุณากรอกชื่อผู้ใช้งาน/เลขบัตรประชาชน และรหัสผ่าน"); return; }
+      if (!u || !p) { showToast("กรุณากรอกชื่อผู้ใช้งาน/เลขบัตรประชาชน และรหัสผ่าน", "error"); return; }
       await performLogin(u, p);
     }
 
     async function handleStaffLogin() {
       const u = document.getElementById('staff-login-user').value.trim();
       const p = document.getElementById('staff-login-pass').value.trim();
-      if (!u || !p) { alert("กรุณากรอกรหัสเจ้าหน้าที่และรหัสผ่าน"); return; }
+      if (!u || !p) { showToast("กรุณากรอกรหัสเจ้าหน้าที่และรหัสผ่าน", "error"); return; }
       await performLogin(u, p);
     }
 
@@ -1405,12 +1471,13 @@
         });
         const data = await res.json();
         if (data.status === "success" && data.user) {
+          showToast(`ยินดีต้อนรับ ${data.user.full_name}`, "success");
           applyUserSession(data.user);
         } else {
-          alert(data.detail || "เข้าสู่ระบบไม่สำเร็จ");
+          showToast(data.detail || "ชื่อผู้ใช้งานหรือรหัสผ่านไม่ถูกต้อง", "error");
         }
       } catch (err) {
-        alert("ไม่สามารถเชื่อมต่อระบบ: " + err.message);
+        showToast("ไม่สามารถเชื่อมต่อระบบ: " + err.message, "error");
       }
     }
 
@@ -1426,11 +1493,11 @@
       const password = document.getElementById('reg-password').value.trim();
 
       if (!citizen_id || citizen_id.length !== 13 || !/^\d+$/.test(citizen_id)) {
-        alert("กรุณากรอกรหัสประจำตัวประชาชน 13 หลัก (ตัวเลขล้วน) ให้ถูกต้อง");
+        showToast("กรุณากรอกรหัสประจำตัวประชาชน 13 หลัก (ตัวเลขล้วน) ให้ถูกต้อง", "error");
         return;
       }
       if (!full_name || !username || !password || !phone) {
-        alert("กรุณากรอกข้อมูลการสมัครสมาชิกให้ครบถ้วนทุกช่อง");
+        showToast("กรุณากรอกข้อมูลการสมัครสมาชิกให้ครบถ้วนทุกช่อง", "error");
         return;
       }
 
@@ -1481,10 +1548,10 @@
             if (first) first.focus();
           }, 200);
         } else {
-          alert(data.detail || "ไม่สามารถขอรหัส OTP ได้");
+          showToast(data.detail || "ไม่สามารถขอรหัส OTP ได้", "error");
         }
       } catch (err) {
-        alert("เกิดข้อผิดพลาดในการเชื่อมต่อ: " + err.message);
+        showToast("เกิดข้อผิดพลาดในการเชื่อมต่อ: " + err.message, "error");
       } finally {
         if (btn) {
           btn.disabled = false;
@@ -1578,13 +1645,13 @@
           document.querySelectorAll('.otp-digit-input').forEach(i => { i.value = ''; });
           document.getElementById('otp-error-msg').classList.add('hidden');
           startOtpTimer(60);
-          alert("ส่งรหัส OTP ชุดใหม่ไปยังหมายเลขโทรศัพท์ของคุณแล้ว!");
+          showToast("ส่งรหัส OTP ชุดใหม่ไปยังหมายเลขโทรศัพท์ของคุณแล้ว!", "success");
         } else {
-          alert(data.detail || "ไม่สามารถส่งรหัสใหม่ได้");
+          showToast(data.detail || "ไม่สามารถส่งรหัสใหม่ได้", "error");
           resendBtn.disabled = false;
         }
       } catch (err) {
-        alert("เกิดข้อผิดพลาด: " + err.message);
+        showToast("เกิดข้อผิดพลาด: " + err.message, "error");
         resendBtn.disabled = false;
       }
     }
@@ -1621,7 +1688,7 @@
         if (data.status === "success" && data.user) {
           if (otpTimerInterval) clearInterval(otpTimerInterval);
           closeModal('modal-otp-verify');
-          alert(`🎉 ยืนยันรหัส OTP และลงทะเบียนสำเร็จ!\nยินดีต้อนรับคุณ ${data.user.full_name}`);
+          showToast(`🎉 ลงทะเบียนสำเร็จ! ยินดีต้อนรับคุณ ${data.user.full_name}`, "success");
           applyUserSession(data.user);
         } else {
           errEl.innerText = data.detail || "รหัส OTP ไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง";
@@ -1747,7 +1814,7 @@
         const res = await fetch(`/api/cases/${caseId}`);
         const data = await res.json();
         if (!data || data.detail) {
-          alert("ไม่พบข้อมูลเคส");
+          showToast("ไม่พบข้อมูลเคส", "error");
           return;
         }
 
@@ -1903,24 +1970,33 @@
         openModal('modal-case-detail');
 
       } catch (err) {
-        alert("ไม่สามารถดึงข้อมูลรายละเอียดเคส: " + err.message);
+        showToast("ไม่สามารถดึงข้อมูลรายละเอียดเคส: " + err.message, "error");
       }
     }
 
     async function cancelCitizenCase(caseId) {
-      if (!confirm(`คุณต้องการยกเลิกการแจ้งเคส ${caseId} ใช่หรือไม่?`)) return;
+      const ok = await showConfirmDialog({
+        title: "ยกเลิกการแจ้งเคส",
+        message: `คุณต้องการยกเลิกการแจ้งเคส ${caseId} ใช่หรือไม่?`,
+        confirmText: "ยืนยันยกเลิกเคส",
+        cancelText: "กลับ",
+        type: "danger",
+        icon: "fa-solid fa-trash-can"
+      });
+      if (!ok) return;
+
       try {
         const res = await fetch(`/api/cases/${caseId}/cancel`, { method: 'POST' });
         const data = await res.json();
         if (data.status === 'success') {
-          alert('✅ ยกเลิกเคสเรียบร้อยแล้ว');
+          showToast('ยกเลิกเคสเรียบร้อยแล้ว', 'success');
           closeModal('modal-case-detail');
           loadCitizenCases();
         } else {
-          alert('❌ ' + (data.detail || data.message));
+          showToast(data.detail || data.message || "เกิดข้อผิดพลาดในการยกเลิกเคส", 'error');
         }
       } catch (e) {
-        alert('เกิดข้อผิดพลาด: ' + e.message);
+        showToast('เกิดข้อผิดพลาด: ' + e.message, 'error');
       }
     }
 
@@ -2658,7 +2734,14 @@
     }
 
     async function startWork(woId) {
-      if (!confirm("ยืนยันเริ่มปฏิบัติงานซ่อมแซมใบงานนี้?")) return;
+      const ok = await showConfirmDialog({
+        title: "เริ่มปฏิบัติงาน",
+        message: "ยืนยันเริ่มลงพื้นที่ปฏิบัติงานซ่อมแซมใบงานนี้?",
+        confirmText: "เริ่มปฏิบัติงาน",
+        type: "primary",
+        icon: "fa-solid fa-play"
+      });
+      if (!ok) return;
       try {
         const res = await fetch(`/api/work-orders/${woId}/start`, { method: "POST" });
         const data = await res.json();
@@ -2719,7 +2802,14 @@
     }
 
     async function approveAndCreateCase(caseId) {
-      if (!confirm(`ยืนยันการอนุมัติเคส ${caseId} ใช่หรือไม่?\n(สถานะจะเปลี่ยนเป็น "เคสถูกสร้าง" ตาม State Machine Diagram)`)) return;
+      const ok = await showConfirmDialog({
+        title: "อนุมัติเปิดเคส",
+        message: `ยืนยันการอนุมัติเคส ${caseId} ใช่หรือไม่?\n(สถานะจะเปลี่ยนเป็น "เคสถูกสร้าง" ตาม State Machine Diagram)`,
+        confirmText: "อนุมัติเคส",
+        type: "primary",
+        icon: "fa-solid fa-check"
+      });
+      if (!ok) return;
       try {
         const res = await fetch(`/api/cases/${caseId}/approve-create`, { method: "POST" });
         const data = await res.json();
@@ -2736,7 +2826,14 @@
     }
 
     async function authorityCancelCase(caseId) {
-      if (!confirm(`ยืนยันการยกเลิกเคส ${caseId} ใช่หรือไม่?\n(กรณีไม่พบช่างที่พร้อมปฏิบัติงาน ตาม State Machine Diagram)`)) return;
+      const ok = await showConfirmDialog({
+        title: "ยกเลิกเคส",
+        message: `ยืนยันการยกเลิกเคส ${caseId} ใช่หรือไม่?\n(กรณีไม่พบช่างที่พร้อมปฏิบัติงาน ตาม State Machine Diagram)`,
+        confirmText: "ยืนยันยกเลิก",
+        type: "danger",
+        icon: "fa-solid fa-ban"
+      });
+      if (!ok) return;
       try {
         const res = await fetch(`/api/cases/${caseId}/authority-cancel`, { method: "POST" });
         const data = await res.json();
