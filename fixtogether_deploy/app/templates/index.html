@@ -1116,6 +1116,43 @@
     let isDemoBarExpanded = true;
     let cachedCasesMap = {};
 
+    // Modern Non-blocking Toast Notification (แทนที่ alert เดิม)
+    function showToast(message, type = 'success') {
+      let toastContainer = document.getElementById('global-toast-container');
+      if (!toastContainer) {
+        toastContainer = document.createElement('div');
+        toastContainer.id = 'global-toast-container';
+        toastContainer.className = 'fixed top-5 left-1/2 -translate-x-1/2 z-[9999] flex flex-col items-center gap-2 pointer-events-none transition-all duration-300 w-full max-w-md px-4';
+        document.body.appendChild(toastContainer);
+      }
+
+      const toast = document.createElement('div');
+      const isSuccess = type === 'success';
+      toast.className = `pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-2xl shadow-2xl text-xs sm:text-sm font-medium transition-all duration-300 transform -translate-y-4 opacity-0 border ${
+        isSuccess
+          ? 'bg-slate-900/95 text-emerald-400 border-emerald-500/40 backdrop-blur-md'
+          : 'bg-slate-900/95 text-rose-400 border-rose-500/40 backdrop-blur-md'
+      }`;
+      
+      toast.innerHTML = `
+        <span class="text-base">${isSuccess ? '✅' : '⚠️'}</span>
+        <span class="text-slate-100 flex-1 leading-snug">${message}</span>
+      `;
+      
+      toastContainer.appendChild(toast);
+      
+      requestAnimationFrame(() => {
+        toast.classList.remove('-translate-y-4', 'opacity-0');
+        toast.classList.add('translate-y-0', 'opacity-100');
+      });
+
+      setTimeout(() => {
+        toast.classList.remove('translate-y-0', 'opacity-100');
+        toast.classList.add('-translate-y-4', 'opacity-0');
+        setTimeout(() => toast.remove(), 350);
+      }, 3500);
+    }
+
     document.addEventListener("DOMContentLoaded", () => {
       goToHome();
       loadTechniciansDropdown();
@@ -2157,8 +2194,8 @@
       const addr = document.getElementById('report-address').value.trim();
       const fileInput = document.getElementById('report-image-input');
 
-      if (!desc) { alert("กรุณากรอกรายละเอียดความเสียหาย"); return; }
-      if (!addr) { alert("กรุณาระบุสถานที่เกิดเหตุ"); return; }
+      if (!desc) { showToast("กรุณากรอกรายละเอียดความเสียหาย", "error"); return; }
+      if (!addr) { showToast("กรุณาระบุสถานที่เกิดเหตุ", "error"); return; }
 
       const btn = document.getElementById('btn-submit-report');
       btn.disabled = true;
@@ -2184,7 +2221,8 @@
         const res = await fetch("/api/cases", { method: "POST", body: formData });
         const data = await res.json();
         if (data.status === "success") {
-          alert(`✅ แจ้งเหตุสำเร็จ!\nรหัสเคส: ${data.case_id}\nผลการวิเคราะห์ AI: ${data.ai_result.damage_type}`);
+          // ไม่แสดง alert popup ที่เด้งบล็อกหน้าจอ ใช้ Toast แจ้งเตือนแบบนุ่มนวลแทน
+          showToast(`แจ้งเหตุสำเร็จ! รหัสเคส: ${data.case_id} (${data.ai_result?.damage_type || 'AI วิเคราะห์แล้ว'})`, 'success');
           document.getElementById('report-description').value = "";
           document.getElementById('report-address').value = "";
           document.getElementById('upload-placeholder').classList.remove('hidden');
@@ -2192,10 +2230,10 @@
           selectedSampleImage = null;
           setCitizenTab('history');
         } else {
-          alert("เกิดข้อผิดพลาดในการบันทึกข้อมูล");
+          showToast("เกิดข้อผิดพลาดในการบันทึกข้อมูล", 'error');
         }
       } catch (err) {
-        alert("ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์: " + err.message);
+        showToast("ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์: " + err.message, 'error');
       } finally {
         btn.disabled = false;
         btn.innerHTML = `<i class="fa-solid fa-paper-plane mr-1.5"></i> ยืนยันการแจ้งเหตุ`;
@@ -2625,11 +2663,11 @@
         const res = await fetch(`/api/work-orders/${woId}/start`, { method: "POST" });
         const data = await res.json();
         if (data.status === "success") {
-          alert("✅ ปรับสถานะเป็นกำลังดำเนินการซ่อมแล้ว");
+          showToast("ปรับสถานะเป็นกำลังดำเนินการซ่อมแล้ว", "success");
           loadTechnicianOrders();
         }
       } catch (e) {
-        alert(e.message);
+        showToast(e.message, "error");
       }
     }
 
@@ -2670,13 +2708,13 @@
         });
         const data = await res.json();
         if (data.status === "success") {
-          alert("✅ อนุมัติและสร้างใบงาน " + data.work_order_id + " สำเร็จ!");
+          showToast("อนุมัติและสร้างใบงาน " + data.work_order_id + " สำเร็จ!", "success");
           closeModal('modal-approve');
           loadAuthorityCases();
           loadDashboardStats();
         }
       } catch (e) {
-        alert(e.message);
+        showToast(e.message, "error");
       }
     }
 
@@ -2686,14 +2724,14 @@
         const res = await fetch(`/api/cases/${caseId}/approve-create`, { method: "POST" });
         const data = await res.json();
         if (data.status === "success") {
-          alert("✅ " + data.message);
+          showToast(data.message || "อนุมัติเคสสำเร็จ", "success");
           loadAuthorityCases();
           loadDashboardStats();
         } else {
-          alert("❌ " + (data.detail || data.message));
+          showToast(data.detail || data.message || "เกิดข้อผิดพลาด", "error");
         }
       } catch (e) {
-        alert(e.message);
+        showToast(e.message, "error");
       }
     }
 
@@ -2703,14 +2741,14 @@
         const res = await fetch(`/api/cases/${caseId}/authority-cancel`, { method: "POST" });
         const data = await res.json();
         if (data.status === "success") {
-          alert("✅ " + data.message);
+          showToast(data.message || "ยกเลิกเคสเรียบร้อยแล้ว", "success");
           loadAuthorityCases();
           loadDashboardStats();
         } else {
-          alert("❌ " + (data.detail || data.message));
+          showToast(data.detail || data.message || "เกิดข้อผิดพลาด", "error");
         }
       } catch (e) {
-        alert(e.message);
+        showToast(e.message, "error");
       }
     }
 
@@ -2723,7 +2761,7 @@
     async function confirmRejectCase() {
       const caseId = document.getElementById('reject-case-id').value;
       const reason = document.getElementById('reject-reason').value.trim();
-      if (!reason) { alert("กรุณาระบุเหตุผล"); return; }
+      if (!reason) { showToast("กรุณาระบุเหตุผล", "error"); return; }
 
       try {
         const res = await fetch(`/api/cases/${caseId}/reject`, {
@@ -2733,13 +2771,13 @@
         });
         const data = await res.json();
         if (data.status === "success") {
-          alert("ปฏิเสธเคสเรียบร้อยแล้ว");
+          showToast("ปฏิเสธเคสเรียบร้อยแล้ว", "success");
           closeModal('modal-reject');
           loadAuthorityCases();
           loadDashboardStats();
         }
       } catch (e) {
-        alert(e.message);
+        showToast(e.message, "error");
       }
     }
 
@@ -2783,7 +2821,7 @@
       const notes = document.getElementById('submit-repair-notes').value.trim();
       const fileInput = document.getElementById('submit-after-file');
 
-      if (!notes) { alert("กรุณาระบุรายละเอียดผลงาน"); return; }
+      if (!notes) { showToast("กรุณาระบุรายละเอียดผลงาน", "error"); return; }
 
       const fd = new FormData();
       fd.append("repair_notes", notes);
@@ -2799,12 +2837,12 @@
         const res = await fetch(`/api/work-orders/${woId}/submit`, { method: "POST", body: fd });
         const data = await res.json();
         if (data.status === "success") {
-          alert("✅ ส่งผลงานซ่อมเสร็จเพื่อรอการตรวจรับเรียบร้อยแล้ว");
+          showToast("ส่งผลงานซ่อมเสร็จเพื่อรอการตรวจรับเรียบร้อยแล้ว", "success");
           closeModal('modal-submit-work');
           loadTechnicianOrders();
         }
       } catch (e) {
-        alert(e.message);
+        showToast(e.message, "error");
       }
     }
 
@@ -2827,13 +2865,13 @@
         });
         const data = await res.json();
         if (data.status === "success") {
-          alert("✅ " + data.message);
+          showToast(data.message || "บันทึกผลการตรวจรับเรียบร้อยแล้ว", "success");
           closeModal('modal-inspect');
           loadAuthorityCases();
           loadDashboardStats();
         }
       } catch (e) {
-        alert(e.message);
+        showToast(e.message, "error");
       }
     }
 
@@ -2880,12 +2918,12 @@
         });
         const data = await res.json();
         if (data.status === "success") {
-          alert("🌟 บันทึกการประเมินความพึงพอใจสำเร็จ!");
+          showToast("บันทึกการประเมินความพึงพอใจสำเร็จ!", "success");
           closeModal('modal-feedback');
           loadCitizenCases();
         }
       } catch (e) {
-        alert(e.message);
+        showToast(e.message, "error");
       }
     }
 
