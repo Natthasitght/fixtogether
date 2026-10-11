@@ -6,6 +6,7 @@ import random
 import time
 from datetime import datetime
 from typing import Optional, List
+import requests
 
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Request, Depends
 from fastapi.responses import HTMLResponse, JSONResponse
@@ -244,6 +245,18 @@ def list_technicians():
     techs = conn.execute("SELECT user_id, full_name, team_name, phone FROM users WHERE role = 'technician'").fetchall()
     conn.close()
     return [dict(t) for t in techs]
+
+# ----------------- Reverse Geocoding Proxy -----------------
+@app.get("/api/geocode/reverse")
+def geocode_reverse(lat: float, lng: float):
+    try:
+        url = f"https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat={lat}&lon={lng}&accept-language=th"
+        resp = requests.get(url, headers={"User-Agent": "FixTogetherApp/2.0"}, timeout=5)
+        if resp.status_code == 200:
+            return resp.json()
+    except Exception:
+        pass
+    return {"display_name": f"พิกัด {lat:.4f}, {lng:.4f}"}
 
 # ----------------- Cases Endpoints -----------------
 @app.get("/api/cases")

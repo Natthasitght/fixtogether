@@ -419,7 +419,7 @@
             <label class="block text-xs font-semibold text-slate-700 mb-1">สถานที่เกิดเหตุ *</label>
             <div class="flex space-x-2">
               <input type="text" id="report-address" class="flex-grow text-xs rounded-xl border border-slate-300 px-3 py-2.5 focus:ring-2 focus:ring-blue-500" placeholder="เช่น ถ.พหลโยธิน ปากซอย 18/1 จตุจักร">
-              <button type="button" onclick="useCurrentLocation()" class="px-3 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-medium border border-slate-300 flex items-center whitespace-nowrap active:scale-95 transition">
+              <button type="button" id="btn-fetch-gps" onclick="useCurrentLocation()" class="px-3 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-medium border border-slate-300 flex items-center whitespace-nowrap active:scale-95 transition">
                 <i class="fa-solid fa-location-crosshairs mr-1 text-blue-600"></i> ดึง GPS
               </button>
             </div>
@@ -583,7 +583,7 @@
                 <th class="py-2.5 px-3">งบประมาณ</th>
                 <th class="py-2.5 px-3">สถานะ</th>
                 <th class="py-2.5 px-3">ผู้รับผิดชอบ</th>
-                <th class="py-2.5 px-3 text-center">การจัดการ</th>
+                <th class="py-2.5 px-3 text-left">การจัดการ</th>
               </tr>
             </thead>
             <tbody id="authority-cases-tbody" class="divide-y divide-slate-100">
@@ -1919,11 +1919,19 @@
       reportMarker.on('dragend', function (e) {
         const pos = reportMarker.getLatLng();
         updateCoords(pos.lat, pos.lng);
+        fetchAddressFromCoords(pos.lat, pos.lng);
       });
       reportMap.on('click', function (e) {
         reportMarker.setLatLng(e.latlng);
         updateCoords(e.latlng.lat, e.latlng.lng);
+        fetchAddressFromCoords(e.latlng.lat, e.latlng.lng);
       });
+
+      // Auto-fetch initial address if field is empty
+      const addrInput = document.getElementById('report-address');
+      if (addrInput && !addrInput.value.trim()) {
+        fetchAddressFromCoords(currentLat, currentLng);
+      }
     }
 
     function updateCoords(lat, lng) {
@@ -1933,18 +1941,154 @@
       document.getElementById('disp-lng').innerText = lng.toFixed(4);
     }
 
-    function useCurrentLocation() {
+    function formatThaiAddress(data, lat, lng) {
+      if (!data) return `พิกัด ${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+      const a = data.address || {};
+      const parts = [];
+
+      // Place name or Landmark (if descriptive)
+      if (data.name && isNaN(data.name) && data.name !== a.road && data.name !== a.house_number) {
+        parts.push(data.name);
+      }
+
+      // Road / Soi
+      let road = a.road || a.pedestrian || a.street || '';
+      if (road) {
+        if (!road.startsWith('ถนน') && !road.startsWith('ถ.') && !road.startsWith('ซอย') && !road.startsWith('ซ.')) {
+          road = 'ถ.' + road;
+        }
+        parts.push(road);
+      }
+
+      // House number if available
+      if (a.house_number && !parts.some(p => p.includes(a.house_number))) {
+        parts.push(a.house_number);
+      }
+
+      // Suburb (แขวง)
+      const sub = a.suburb || a.quarter || a.neighbourhood || '';
+      if (sub && !parts.some(p => p.includes(sub))) {
+        parts.push((sub.includes('แขวง') || sub.includes('ตำบล') ? '' : 'แขวง') + sub);
+      }
+
+      // District (เขต)
+      const dist = a.city_district || a.district || a.county || '';
+      if (dist && !parts.some(p => p.includes(dist))) {
+        parts.push((dist.includes('เขต') || dist.includes('อำเภอ') ? '' : 'เขต') + dist);
+      }
+
+      // Province (จังหวัด)
+      const city = a.city || a.province || a.state || '';
+      if (city && !parts.some(p => p.includes(city))) {
+        parts.push(city);
+      }
+
+      if (parts.length >= 2) {
+        return parts.join(' ');
+      }
+
+      // Fallback: clean display_name
+      if (data.display_name) {
+        const raw = data.display_name.split(',').map(s => s.trim()).filter(s => s && s !== 'ประเทศไทย' && isNaN(s));
+        if (raw.length > 0) return raw.slice(0, 4).join(', ');
+      }
+
+      return `พิกัด ${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+    }
+
+    async function fetchAddressFromCoords(lat, lng) {
+      const addrInput = document.getElementById('report-address');
+      if (!addrInput) return;
+
+      const oldPlaceholder = addrInput.placeholder;
+      addrInput.placeholder = "กำลังค้นหาชื่อที่อยู่จากพิกัด GPS...";
+
+      try {
+        let data = null;
+        // 1. Try local backend proxy
+        try {
+          const res = await fetch(`/api/geocode/reverse?lat=${lat}&lng=${lng}`);
+          if (res.ok) data = await res.json();
+        } catch (_) {}
+
+        // 2. Fallback to direct Nominatim
+        if (!data || !data.display_name || data.display_name.startsWith('พิกัด')) {
+          try {
+            const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&accept-language=th`);
+            if (res.ok) data = await res.json();
+          } catch (_) {}
+        }
+
+        if (data) {
+          const formatted = formatThaiAddress(data, lat, lng);
+          if (formatted) {
+            addrInput.value = formatted;
+            addrInput.classList.add('bg-blue-50/60');
+            setTimeout(() => addrInput.classList.remove('bg-blue-50/60'), 1200);
+            return;
+          }
+        }
+      } catch (err) {
+        console.warn("Reverse geocode error:", err);
+      } finally {
+        addrInput.placeholder = oldPlaceholder || "เช่น ถ.พหลโยธิน ปากซอย 18/1 จตุจักร";
+      }
+
+      if (!addrInput.value.trim()) {
+        addrInput.value = `พิกัด ${lat.toFixed(4)}, ${lng.toFixed(4)} (กรุงเทพมหานคร)`;
+      }
+    }
+
+    async function useCurrentLocation() {
+      const btn = document.getElementById('btn-fetch-gps');
+      const addrInput = document.getElementById('report-address');
+      let oldBtnHtml = '';
+      if (btn) {
+        oldBtnHtml = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-1 text-blue-600"></i> กำลังดึง GPS...`;
+      }
+
+      let hasApplied = false;
+      const applyLocation = async (lat, lng) => {
+        if (hasApplied) return;
+        hasApplied = true;
+        if (reportMarker) reportMarker.setLatLng([lat, lng]);
+        if (reportMap) reportMap.setView([lat, lng], 15);
+        updateCoords(lat, lng);
+        await fetchAddressFromCoords(lat, lng);
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = oldBtnHtml;
+        }
+      };
+
+      // Safety timeout: fallback if browser geolocation takes more than 6s
+      const safetyTimer = setTimeout(() => {
+        if (!hasApplied) {
+          console.warn("Geolocation timeout, falling back to current pin location");
+          applyLocation(currentLat, currentLng);
+        }
+      }, 6000);
+
       if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
-          (pos) => {
+          async (pos) => {
+            clearTimeout(safetyTimer);
             const lat = pos.coords.latitude;
             const lng = pos.coords.longitude;
-            reportMarker.setLatLng([lat, lng]);
-            reportMap.setView([lat, lng], 15);
-            updateCoords(lat, lng);
+            await applyLocation(lat, lng);
           },
-          () => alert("ไม่สามารถเข้าถึงพิกัดปัจจุบันได้ กรุณาลากหมุดบนแผนที่")
+          async (err) => {
+            clearTimeout(safetyTimer);
+            console.warn("Geolocation sensor unavailable/blocked, using current map pin:", err);
+            await applyLocation(currentLat, currentLng);
+          },
+          { enableHighAccuracy: true, timeout: 5000, maximumAge: 10000 }
         );
+      } else {
+        clearTimeout(safetyTimer);
+        await applyLocation(currentLat, currentLng);
       }
     }
 
@@ -2216,30 +2360,30 @@
             </td>
             <td class="py-2.5 px-3">${getStatusBadge(c.status)}</td>
             <td class="py-2.5 px-3 text-slate-600 whitespace-nowrap">${c.technician_name || '-'}</td>
-            <td class="py-2.5 px-3 text-center whitespace-nowrap">
-              <div class="flex items-center justify-center space-x-1.5">
-                <!-- ดูรายละเอียดปุ่มหลัก -->
-                <button onclick="viewCaseDetails('${c.case_id}')" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-md text-[11px] font-medium border border-slate-200 shadow-sm" title="ดูรายละเอียดเคสนี้">
-                  <i class="fa-solid fa-eye mr-1 text-slate-500"></i> ดูรายละเอียด
+            <td class="py-2.5 px-3 text-left whitespace-nowrap">
+              <div class="flex items-center justify-start gap-1.5">
+                <!-- ดูรายละเอียดปุ่มหลัก (จัดแถวตรงกันทุกบรรทัด) -->
+                <button onclick="viewCaseDetails('${c.case_id}')" class="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-[11px] font-medium border border-slate-200 shadow-2xs transition inline-flex items-center" title="ดูรายละเอียดเคสนี้">
+                  <i class="fa-solid fa-eye mr-1 text-slate-400"></i> ดูรายละเอียด
                 </button>
 
                 ${c.status === 'รอตรวจสอบ' ? `
-                  <button onclick="approveAndCreateCase('${c.case_id}')" class="px-2 py-1 bg-sky-600 hover:bg-sky-700 text-white rounded-md text-[11px] font-medium shadow-sm" title="อนุมัติเคส (เปลี่ยนสถานะเป็น เคสถูกสร้าง)">
-                    <i class="fa-solid fa-check mr-0.5"></i> อนุมัติ
+                  <button onclick="approveAndCreateCase('${c.case_id}')" class="px-2.5 py-1.5 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-[11px] font-medium shadow-xs transition inline-flex items-center" title="อนุมัติเคส (เปลี่ยนสถานะเป็น เคสถูกสร้าง)">
+                    <i class="fa-solid fa-check mr-1"></i> อนุมัติ
                   </button>
-                  <button onclick="openRejectModal('${c.case_id}')" class="px-2 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-md text-[11px] font-medium border border-rose-200" title="ปฏิเสธคำขอ">
+                  <button onclick="openRejectModal('${c.case_id}')" class="px-2.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-lg text-[11px] font-medium border border-rose-200 transition inline-flex items-center" title="ปฏิเสธคำขอ">
                     ปฏิเสธ
                   </button>
                 ` : c.status === 'เคสถูกสร้าง' ? `
-                  <button onclick="openApproveModal('${c.case_id}', ${c.estimated_budget})" class="px-2 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md text-[11px] font-medium shadow-sm" title="ออกใบงานและมอบหมายช่าง">
-                    <i class="fa-solid fa-user-plus mr-0.5"></i> มอบหมายช่าง
+                  <button onclick="openApproveModal('${c.case_id}', ${c.estimated_budget})" class="px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[11px] font-medium shadow-xs transition inline-flex items-center" title="ออกใบงานและมอบหมายช่าง">
+                    <i class="fa-solid fa-user-plus mr-1"></i> มอบหมายช่าง
                   </button>
-                  <button onclick="authorityCancelCase('${c.case_id}')" class="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-md text-[11px] font-medium border border-slate-300" title="ยกเลิกเคส (กรณีไม่พบช่างพร้อมปฏิบัติงาน)">
+                  <button onclick="authorityCancelCase('${c.case_id}')" class="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-[11px] font-medium border border-slate-300 transition inline-flex items-center" title="ยกเลิกเคส (กรณีไม่พบช่างพร้อมปฏิบัติงาน)">
                     ยกเลิก
                   </button>
                 ` : c.status === 'รอตรวจรับงาน' ? `
-                  <button onclick="openInspectModal('${c.work_order_id}', '${c.image_url}', '${c.after_image_url}')" class="px-2 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-md text-[11px] font-medium shadow-sm">
-                    ตรวจรับ
+                  <button onclick="openInspectModal('${c.work_order_id}', '${c.image_url}', '${c.after_image_url}')" class="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[11px] font-medium shadow-xs transition inline-flex items-center" title="ตรวจรับงาน">
+                    <i class="fa-solid fa-clipboard-check mr-1"></i> ตรวจรับ
                   </button>
                 ` : ''}
               </div>
@@ -2302,8 +2446,8 @@
                       ยกเลิก
                     </button>
                   ` : c.status === 'รอตรวจรับงาน' ? `
-                    <button onclick="openInspectModal('${c.work_order_id}', '${c.image_url}', '${c.after_image_url}')" class="flex-1 py-2 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white rounded-lg text-xs font-medium shadow-xs">
-                      ตรวจรับงาน
+                    <button onclick="openInspectModal('${c.work_order_id}', '${c.image_url}', '${c.after_image_url}')" class="flex-1 py-2 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white rounded-lg text-xs font-medium shadow-xs flex items-center justify-center">
+                      <i class="fa-solid fa-clipboard-check mr-1.5"></i> ตรวจรับงาน
                     </button>
                   ` : ''}
                 </div>
